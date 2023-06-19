@@ -18,6 +18,8 @@ class Photo extends StatefulWidget {
 class _PhotoState extends State<Photo> {
   dynamic _image;
   dynamic imagePicker;
+  String? myName;
+  String? myNumber;
   final List<int> steps = [1, 2, 3]; //steps to enroll!
 
   @override
@@ -33,6 +35,16 @@ class _PhotoState extends State<Photo> {
       final path = prefs.getString("imagePath")!;
       setState(() {
         _image = File(path);
+      });
+    }
+    if (prefs.containsKey("name") == true) {
+      setState(() {
+        myName = prefs.getString("name")!;
+      });
+    }
+    if (prefs.containsKey("number") == true) {
+      setState(() {
+        myNumber = prefs.getString("number")!;
       });
     }
   }
@@ -52,15 +64,15 @@ class _PhotoState extends State<Photo> {
           children: <Widget>[
             Container(
               width: MediaQuery.of(context).size.width,
-              constraints: BoxConstraints(
-                minHeight: 130 /
-                    100 *
-                    MediaQuery.of(context)
-                        .size
-                        .height, // Set the minimum height to 0
-                maxHeight:
-                    double.infinity, // Set the maximum height to infinity
-              ),
+              constraints: _image != null
+                  ? BoxConstraints(
+                      minHeight: 130 / 100 * MediaQuery.of(context).size.height,
+                      maxHeight: double.infinity,
+                    )
+                  : BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height,
+                      maxHeight: double.infinity,
+                    ),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -76,15 +88,15 @@ class _PhotoState extends State<Photo> {
             ),
             Container(
               width: MediaQuery.of(context).size.width,
-              constraints: BoxConstraints(
-                minHeight: 130 /
-                    100 *
-                    MediaQuery.of(context)
-                        .size
-                        .height, // Set the minimum height to 0
-                maxHeight:
-                    double.infinity, // Set the maximum height to infinity
-              ),
+              constraints: _image != null
+                  ? BoxConstraints(
+                      minHeight: 130 / 100 * MediaQuery.of(context).size.height,
+                      maxHeight: double.infinity,
+                    )
+                  : BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height,
+                      maxHeight: double.infinity,
+                    ),
               color: const Color.fromARGB(120, 255, 255, 255),
               child: Column(
                 mainAxisSize: MainAxisSize.max,
@@ -356,12 +368,30 @@ class _PhotoState extends State<Photo> {
                             ),
                             onPressed: () {
                               if (_image != null) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const Details(),
-                                  ),
-                                );
+                                if (myName!.isEmpty == true) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const Name(),
+                                    ),
+                                  );
+                                } else {
+                                  if (myNumber?.isEmpty == true) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const Mobile(),
+                                      ),
+                                    );
+                                  } else {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const Details(),
+                                      ),
+                                    );
+                                  }
+                                }
                               } else {
                                 showDialog<String>(
                                   context: context,
