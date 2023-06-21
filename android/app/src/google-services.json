@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "836693955830",
+    "project_id": "synergy-visitor-log",
+    "storage_bucket": "synergy-visitor-log.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:836693955830:android:2a8d8aa72f11ee098f88d7",
+        "android_client_info": {
+          "package_name": "com.example.synergyvisitorlog"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "836693955830-v9c981gfkd3frehcbeg585th8htlki2s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTGYCVEgsy2GxPTcrEuFh71whljvWnO9g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "836693955830-v9c981gfkd3frehcbeg585th8htlki2s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

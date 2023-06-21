@@ -1,8 +1,11 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:synergyvisitorlog/name.dart";
+import "package:firebase_core/firebase_core.dart";
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
   resetApp();
 }
@@ -112,10 +115,7 @@ class _MyAppState extends State<MyApp> {
                                   padding: const EdgeInsetsDirectional.fromSTEB(
                                       2, 2, 10, 2),
                                   child: ElevatedButton(
-                                    onPressed: () => Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                            builder: (context) =>
-                                                const Name())),
+                                    onPressed: () {},
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFFFFFBD6),
                                     ),

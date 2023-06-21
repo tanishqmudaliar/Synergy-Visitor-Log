@@ -13,12 +13,13 @@ class Name extends StatefulWidget {
 }
 
 class _NameState extends State<Name> {
-  final myName = TextEditingController(); //texteditingcontroller
-  bool validate = false; //variable to store the bool value
-  final List<int> steps = [1, 2, 3]; //steps to enroll!
-  SpeechToText speechToText = SpeechToText();
-  bool speechEnabled = false;
+  final myName = TextEditingController(); // texteditingcontroller
+  bool validate = false; // variable to store the bool value
+  final List<int> steps = [1, 2, 3]; // steps to enroll!
+  SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
+  bool speechEnabled = false; // Whether the speech is enabled or not
 
+  // This runs only once when the screen is being displayed.
   @override
   void initState() {
     super.initState();
@@ -26,6 +27,13 @@ class _NameState extends State<Name> {
     loadName();
   }
 
+  // This has to happen only once per app
+  void initSpeech() async {
+    speechEnabled = await speechToText.initialize();
+    setState(() {});
+  }
+
+  // Loads the saved data from the local storage.
   void loadName() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey("name") == true) {
@@ -35,6 +43,7 @@ class _NameState extends State<Name> {
     }
   }
 
+  // Data "name" is being pushed into the local storage.
   void setName() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -42,29 +51,19 @@ class _NameState extends State<Name> {
     });
   }
 
-  /// This has to happen only once per app
-  void initSpeech() async {
-    speechEnabled = await speechToText.initialize();
-    setState(() {});
-  }
-
-  /// Each time to start a speech recognition session
+  // Each time to start a speech recognition session
   void startListening() async {
     await speechToText.listen(onResult: speechResult);
     setState(() {});
   }
 
-  /// Manually stop the active speech recognition session
-  /// Note that there are also timeouts that each platform enforces
-  /// and the SpeechToText plugin supports setting timeouts on the
-  /// listen method.
+  // Manually stop the active speech recognition session
   void stopListening() async {
     await speechToText.stop();
     setState(() {});
   }
 
-  /// This is the callback that the SpeechToText plugin calls when
-  /// the platform returns recognized words.
+  // This is the callback that the SpeechToText plugin calls when the platform returns recognized words.
   void speechResult(SpeechRecognitionResult result) {
     setState(() {
       myName.text = result.recognizedWords;
@@ -73,13 +72,14 @@ class _NameState extends State<Name> {
     });
   }
 
+  // Clean up the controller when the widget is disposed.
   @override
   void dispose() {
-    // Clean up the controller when the widget is disposed.
     myName.dispose();
     super.dispose();
   }
 
+  // Widget
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,25 +176,24 @@ class _NameState extends State<Name> {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                              builder: (_) => const Name()),
+                                            builder: (_) => const Name(),
+                                          ),
                                         );
                                         setName();
                                       } else if (step == 2) {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                              builder: (_) => const Mobile(
-                                                  // dataone: '',
-                                                  )),
+                                            builder: (_) => const Mobile(),
+                                          ),
                                         );
                                         setName();
                                       } else if (step == 3) {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                              builder: (_) => const Photo(
-                                                  // datatwo: '',
-                                                  )),
+                                            builder: (_) => const Photo(),
+                                          ),
                                         );
                                         setName();
                                       }

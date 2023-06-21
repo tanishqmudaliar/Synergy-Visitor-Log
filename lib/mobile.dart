@@ -16,12 +16,13 @@ class Mobile extends StatefulWidget {
 }
 
 class _MobileState extends State<Mobile> {
-  final myNumber = TextEditingController(); //texteditingcontroller
-  bool validate = false; //variable to store the bool value
-  final List<int> steps = [1, 2, 3]; //steps to enroll!
-  SpeechToText speechText = SpeechToText();
-  bool speechEnabled = false;
+  final myNumber = TextEditingController(); //  texteditingcontroller
+  bool validate = false; // variable to store the bool value
+  final List<int> steps = [1, 2, 3]; // steps to enroll!
+  SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
+  bool speechEnabled = false; // Whether the speech is enabled or not
 
+  // This runs only once when the screen is being displayed.
   @override
   void initState() {
     super.initState();
@@ -29,6 +30,13 @@ class _MobileState extends State<Mobile> {
     loadNumber();
   }
 
+  // This has to happen only once per app
+  void initSpeech() async {
+    speechEnabled = await speechToText.initialize();
+    setState(() {});
+  }
+
+  // Loads the saved data from the local storage.
   void loadNumber() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey("number") == true) {
@@ -38,6 +46,7 @@ class _MobileState extends State<Mobile> {
     }
   }
 
+  // Data "number" is being pushed into the local storage.
   void setNumber() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -45,31 +54,21 @@ class _MobileState extends State<Mobile> {
     });
   }
 
-  /// This has to happen only once per app
-  void initSpeech() async {
-    speechEnabled = await speechText.initialize();
-    setState(() {});
-  }
-
-  /// Each time to start a speech recognition session
+  // Each time to start a speech recognition session
   void startListening() async {
-    await speechText.listen(
+    await speechToText.listen(
       onResult: onSpeechResult,
     );
     setState(() {});
   }
 
-  /// Manually stop the active speech recognition session
-  /// Note that there are also timeouts that each platform enforces
-  /// and the SpeechToText plugin supports setting timeouts on the
-  /// listen method.
+  // Manually stop the active speech recognition session
   void stopListening() async {
-    await speechText.stop();
+    await speechToText.stop();
     setState(() {});
   }
 
-  /// This is the callback that the SpeechToText plugin calls when
-  /// the platform returns recognized words.
+  // This is the callback that the SpeechToText plugin calls when the platform returns recognized words.
   void onSpeechResult(SpeechRecognitionResult result) {
     String sanitizedResult =
         result.recognizedWords.replaceAll(RegExp(r'[^0-9 ]'), '');
@@ -81,13 +80,14 @@ class _MobileState extends State<Mobile> {
     });
   }
 
+  // Clean up the controller when the widget is disposed.
   @override
   void dispose() {
-    // Clean up the controller when the widget is disposed.
     myNumber.dispose();
     super.dispose();
   }
 
+  // Widget
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -223,7 +223,7 @@ class _MobileState extends State<Mobile> {
                               0, 10, 0, 15),
                           child: Text(
                             // If listening is active show the recognized words
-                            speechText.isListening
+                            speechToText.isListening
                                 ? "Listening..."
                                 // If listening isn"t active but could be tell the user
                                 // how to start it, otherwise indicate that speech
@@ -314,7 +314,7 @@ class _MobileState extends State<Mobile> {
                                 color: Color.fromARGB(255, 70, 70, 70),
                               ),
                               onPressed: // If not yet listening for speech start, otherwise stop
-                                  speechText.isNotListening
+                                  speechToText.isNotListening
                                       ? startListening
                                       : stopListening,
                             ),

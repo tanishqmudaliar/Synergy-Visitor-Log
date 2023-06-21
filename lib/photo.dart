@@ -1,8 +1,9 @@
 import "dart:io";
+import 'dart:ui' as ui;
 import "package:flutter/material.dart";
 import "package:image_picker/image_picker.dart";
 import "package:shared_preferences/shared_preferences.dart";
-import "package:synergyvisitorlog/details.dart";
+import 'package:synergyvisitorlog/detailsConfirm.dart';
 import "package:synergyvisitorlog/mobile.dart";
 import "package:synergyvisitorlog/name.dart";
 
@@ -16,25 +17,27 @@ class Photo extends StatefulWidget {
 }
 
 class _PhotoState extends State<Photo> {
-  dynamic _image;
-  dynamic imagePicker;
-  String? myName;
-  String? myNumber;
-  final List<int> steps = [1, 2, 3]; //steps to enroll!
+  dynamic imageFile; // image file
+  dynamic imagePicker; // image picker
+  String? myName; // user name
+  String? myNumber; // user number
+  final List<int> steps = [1, 2, 3]; // steps to enroll!
 
+  // This runs only once when the screen is being displayed.
   @override
   void initState() {
     super.initState();
     imagePicker = ImagePicker();
-    loadImage();
+    loadData();
   }
 
-  void loadImage() async {
+  // Loads the saved data from the local storage.
+  void loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey("imagePath") == true) {
       final path = prefs.getString("imagePath")!;
       setState(() {
-        _image = File(path);
+        imageFile = File(path);
       });
     }
     if (prefs.containsKey("name") == true) {
@@ -49,6 +52,7 @@ class _PhotoState extends State<Photo> {
     }
   }
 
+  // Data "image.path" is being pushed into the local storage.
   void setImage({required String path}) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -56,6 +60,7 @@ class _PhotoState extends State<Photo> {
     });
   }
 
+  // Widget
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,7 +69,7 @@ class _PhotoState extends State<Photo> {
           children: <Widget>[
             Container(
               width: MediaQuery.of(context).size.width,
-              constraints: _image != null
+              constraints: imageFile != null
                   ? BoxConstraints(
                       minHeight: 130 / 100 * MediaQuery.of(context).size.height,
                       maxHeight: double.infinity,
@@ -88,7 +93,7 @@ class _PhotoState extends State<Photo> {
             ),
             Container(
               width: MediaQuery.of(context).size.width,
-              constraints: _image != null
+              constraints: imageFile != null
                   ? BoxConstraints(
                       minHeight: 130 / 100 * MediaQuery.of(context).size.height,
                       maxHeight: double.infinity,
@@ -117,7 +122,7 @@ class _PhotoState extends State<Photo> {
                     ),
                   ),
                   Padding(
-                    padding: _image != null
+                    padding: imageFile != null
                         ? const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0)
                         : const EdgeInsetsDirectional.fromSTEB(0, 20, 0, 0),
                     child: const Text(
@@ -129,7 +134,7 @@ class _PhotoState extends State<Photo> {
                     ),
                   ),
                   Padding(
-                    padding: _image != null
+                    padding: imageFile != null
                         ? const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0)
                         : const EdgeInsetsDirectional.fromSTEB(0, 8, 0, 0),
                     child: const Text(
@@ -144,7 +149,7 @@ class _PhotoState extends State<Photo> {
                     ),
                   ),
                   Padding(
-                    padding: _image != null
+                    padding: imageFile != null
                         ? const EdgeInsetsDirectional.fromSTEB(20, 0, 20, 0)
                         : const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 20),
                     child: Column(
@@ -152,7 +157,7 @@ class _PhotoState extends State<Photo> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
                         Padding(
-                          padding: _image != null
+                          padding: imageFile != null
                               ? const EdgeInsetsDirectional.fromSTEB(0, 5, 0, 5)
                               : const EdgeInsetsDirectional.fromSTEB(
                                   0, 0, 0, 20),
@@ -180,7 +185,8 @@ class _PhotoState extends State<Photo> {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                                builder: (_) => const Name()),
+                                              builder: (_) => const Name(),
+                                            ),
                                           );
                                         } else if (step == 2) {
                                           Navigator.push(
@@ -250,7 +256,7 @@ class _PhotoState extends State<Photo> {
                                                   CameraDevice.front);
                                       if (image != null) {
                                         setState(() {
-                                          _image = File(image.path);
+                                          imageFile = File(image.path);
                                         });
                                         setImage(path: image.path);
                                         // ignore: use_build_context_synchronously
@@ -283,7 +289,7 @@ class _PhotoState extends State<Photo> {
                                                   CameraDevice.front);
                                       if (image != null) {
                                         setState(() {
-                                          _image = File(image.path);
+                                          imageFile = File(image.path);
                                         });
                                         setImage(path: image.path);
                                         // ignore: use_build_context_synchronously
@@ -311,20 +317,40 @@ class _PhotoState extends State<Photo> {
                             );
                           },
                           child: Padding(
-                            padding: _image != null
+                            padding: imageFile != null
                                 ? const EdgeInsetsDirectional.fromSTEB(
                                     0, 15, 0, 15)
                                 : const EdgeInsetsDirectional.fromSTEB(
                                     0, 7.5, 0, 7.5),
                             child: Center(
-                              child: _image != null
-                                  ? Image.file(
-                                      _image,
-                                      width: MediaQuery.of(context).size.width,
-                                      height: 150 /
-                                          100 *
-                                          MediaQuery.of(context).size.width,
-                                      fit: BoxFit.fill,
+                              child: imageFile != null
+                                  ? FutureBuilder<ui.Image>(
+                                      future: decodeImageFromList(
+                                          File(imageFile.path)
+                                              .readAsBytesSync()),
+                                      builder: (BuildContext context,
+                                          AsyncSnapshot<ui.Image> snapshot) {
+                                        if (snapshot.hasData) {
+                                          final image = snapshot.data!;
+                                          final aspectRatio =
+                                              image.width.toDouble() /
+                                                  image.height.toDouble();
+                                          final height = MediaQuery.of(context)
+                                                  .size
+                                                  .width /
+                                              aspectRatio;
+                                          return Image.file(
+                                            imageFile,
+                                            width: MediaQuery.of(context)
+                                                .size
+                                                .width,
+                                            height: 80 / 100 * height,
+                                            fit: BoxFit.contain,
+                                          );
+                                        } else {
+                                          return const CircularProgressIndicator();
+                                        }
+                                      },
                                     )
                                   : const Row(
                                       mainAxisSize: MainAxisSize.max,
@@ -357,7 +383,7 @@ class _PhotoState extends State<Photo> {
                           ),
                         ),
                         Padding(
-                          padding: _image != null
+                          padding: imageFile != null
                               ? const EdgeInsetsDirectional.fromSTEB(
                                   0, 15, 0, 15)
                               : const EdgeInsetsDirectional.fromSTEB(
@@ -367,7 +393,7 @@ class _PhotoState extends State<Photo> {
                               backgroundColor: const Color(0xFFFFFBD6),
                             ),
                             onPressed: () {
-                              if (_image != null) {
+                              if (imageFile != null) {
                                 if (myName!.isEmpty == true) {
                                   Navigator.push(
                                     context,
@@ -387,7 +413,7 @@ class _PhotoState extends State<Photo> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const Details(),
+                                        builder: (_) => const DetailsConfirm(),
                                       ),
                                     );
                                   }
@@ -427,7 +453,7 @@ class _PhotoState extends State<Photo> {
                                                       CameraDevice.front);
                                           if (image != null) {
                                             setState(() {
-                                              _image = File(image.path);
+                                              imageFile = File(image.path);
                                             });
                                             setImage(path: image.path);
                                             // ignore: use_build_context_synchronously
@@ -460,7 +486,7 @@ class _PhotoState extends State<Photo> {
                                                       CameraDevice.front);
                                           if (image != null) {
                                             setState(() {
-                                              _image = File(image.path);
+                                              imageFile = File(image.path);
                                             });
                                             setImage(path: image.path);
                                             // ignore: use_build_context_synchronously
