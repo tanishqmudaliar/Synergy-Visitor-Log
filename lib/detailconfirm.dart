@@ -1,7 +1,7 @@
 import "dart:io";
-import 'dart:ui' as ui;
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:flutter/material.dart";
+import "package:image_cropper/image_cropper.dart";
 import "package:image_picker/image_picker.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:synergyvisitorlog/extendeddetails.dart";
@@ -49,6 +49,50 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       duration: const Duration(
           seconds: 1), // Adjust the duration as per your preference
     )..repeat();
+  }
+
+  // Click image
+  void imageClickCamera() async {
+    XFile? image = await imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 100,
+        preferredCameraDevice: CameraDevice.front);
+    if (image != null) {
+      CroppedFile? croppedImage = await ImageCropper().cropImage(
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+      if (croppedImage != null) {
+        setState(() {
+          imageFile = File(croppedImage.path);
+        });
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        setState(() {
+          prefs.setString("imagePath", croppedImage.path);
+        });
+      }
+    }
+  }
+
+  // Click image
+  void imageClickGallery() async {
+    XFile? image = await imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 100,
+    );
+    if (image != null) {
+      CroppedFile? croppedImage = await ImageCropper().cropImage(
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+      if (croppedImage != null) {
+        setState(() {
+          imageFile = File(croppedImage.path);
+        });
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        setState(() {
+          prefs.setString("imagePath", croppedImage.path);
+        });
+      }
+    }
   }
 
   // This has to happen only once per app
@@ -279,8 +323,8 @@ class _DetailsConfirmState extends State<DetailsConfirm>
     required dynamic image,
     required ScaffoldMessengerState scaffoldMessenger,
   }) async {
-    final database = FirebaseFirestore.instance.collection("users").doc(name);
-    final storage = FirebaseStorage.instance.ref("users/$name.png");
+    final database = FirebaseFirestore.instance.collection("users").doc(number);
+    final storage = FirebaseStorage.instance.ref("users/$number.png");
 
     scaffoldMessenger.showSnackBar(
       SnackBar(
@@ -401,7 +445,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
           ),
         ),
       );
-      await Future.delayed(const Duration(seconds: 4)); // Wait for 4 seconds
+      await Future.delayed(const Duration(seconds: 2)); // Wait for 4 seconds
       // ignore: use_build_context_synchronously
       Navigator.pushAndRemoveUntil(
         context,
@@ -601,7 +645,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                     // recognition is not yet ready or not supported on
                                     // the target device
                                     : speechEnabled
-                                        ? "Tap the microphone and start speaking..."
+                                        ? "Tap the microphone to start listening..."
                                         : "Speech not available",
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
@@ -1062,40 +1106,31 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                               child: Padding(
                                 padding: imageFile != null
                                     ? const EdgeInsetsDirectional.fromSTEB(
-                                        0, 15, 0, 15)
+                                        0, 5, 0, 5)
                                     : const EdgeInsetsDirectional.fromSTEB(
                                         0, 7.5, 0, 7.5),
                                 child: Center(
                                   child: imageFile != null
-                                      ? FutureBuilder<ui.Image>(
-                                          future: decodeImageFromList(
-                                              File(imageFile.path)
-                                                  .readAsBytesSync()),
-                                          builder: (BuildContext context,
-                                              AsyncSnapshot<ui.Image>
-                                                  snapshot) {
-                                            if (snapshot.hasData) {
-                                              final image = snapshot.data!;
-                                              final aspectRatio =
-                                                  image.width.toDouble() /
-                                                      image.height.toDouble();
-                                              final height =
-                                                  MediaQuery.of(context)
+                                      ? Center(
+                                          child: imageFile != null
+                                              ? Image.file(
+                                                  imageFile,
+                                                  width: MediaQuery.of(context)
+                                                      .size
+                                                      .width,
+                                                  height: 86.5 /
+                                                      100 *
+                                                      MediaQuery.of(context)
                                                           .size
-                                                          .width /
-                                                      aspectRatio;
-                                              return Image.file(
-                                                imageFile,
-                                                width: MediaQuery.of(context)
-                                                    .size
-                                                    .width,
-                                                height: 80 / 100 * height,
-                                                fit: BoxFit.contain,
-                                              );
-                                            } else {
-                                              return const CircularProgressIndicator();
-                                            }
-                                          },
+                                                          .width,
+                                                  fit: BoxFit.contain,
+                                                )
+                                              : const CircularProgressIndicator(
+                                                  backgroundColor:
+                                                      Color.fromARGB(
+                                                          255, 65, 65, 65),
+                                                  color: Color(0xFFFFFBD6),
+                                                ),
                                         )
                                       : const Row(
                                           mainAxisSize: MainAxisSize.max,

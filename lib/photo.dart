@@ -1,6 +1,6 @@
 import "dart:io";
-import 'dart:ui' as ui;
 import "package:flutter/material.dart";
+import "package:image_cropper/image_cropper.dart";
 import "package:image_picker/image_picker.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import 'package:synergyvisitorlog/detailconfirm.dart';
@@ -22,6 +22,7 @@ class _PhotoState extends State<Photo> {
   dynamic imagePicker; // image picker
   String? myName; // user name
   String? myNumber; // user number
+  bool visible = false; // visible
   late List<int> stepsforenroll = []; // steps to enroll!
 
   // This runs only once when the screen is being displayed.
@@ -32,13 +33,59 @@ class _PhotoState extends State<Photo> {
     loadData();
   }
 
+  // Click image
+  void imageClickCamera() async {
+    XFile? image = await imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 100,
+        preferredCameraDevice: CameraDevice.front);
+    if (image != null) {
+      CroppedFile? croppedImage = await ImageCropper().cropImage(
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+      if (croppedImage != null) {
+        setState(() {
+          imageFile = File(croppedImage.path);
+          visible = true;
+        });
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        setState(() {
+          prefs.setString("imagePath", croppedImage.path);
+        });
+      }
+    }
+  }
+
+  // Click image
+  void imageClickGallery() async {
+    XFile? image = await imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 100,
+    );
+    if (image != null) {
+      CroppedFile? croppedImage = await ImageCropper().cropImage(
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+      if (croppedImage != null) {
+        setState(() {
+          imageFile = File(croppedImage.path);
+          visible = true;
+        });
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        setState(() {
+          prefs.setString("imagePath", croppedImage.path);
+        });
+      }
+    }
+  }
+
   // Loads the saved data from the local storage.
   void loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey("imagePath") == true) {
-      final path = prefs.getString("imagePath")!;
       setState(() {
-        imageFile = File(path);
+        imageFile = File(prefs.getString("imagePath")!);
+        visible = true;
       });
     }
     if (prefs.containsKey("name") == true) {
@@ -60,14 +107,6 @@ class _PhotoState extends State<Photo> {
         });
       }
     }
-  }
-
-  // Data "image.path" is being pushed into the local storage.
-  void setImage({required String path}) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      prefs.setString("imagePath", path);
-    });
   }
 
   // Widget
@@ -227,168 +266,112 @@ class _PhotoState extends State<Photo> {
                               ],
                             ),
                           ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFFFBD6),
-                            ),
-                            onPressed: () async {
-                              showDialog<String>(
-                                context: context,
-                                builder: (BuildContext context) => AlertDialog(
-                                  backgroundColor: const Color(0xFFFFFBD6),
-                                  title: const Text(
-                                    "Choose your preffered method!",
-                                    style: TextStyle(
-                                      fontFamily: "ComicNeue",
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 22,
-                                      color: Color.fromARGB(255, 65, 65, 65),
-                                    ),
-                                  ),
-                                  content: const Text(
-                                    "Choose a preffered method for submitting your photo!",
-                                    style: TextStyle(
-                                      fontFamily: "ComicNeue",
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: Color.fromARGB(255, 65, 65, 65),
-                                    ),
-                                  ),
-                                  actions: <Widget>[
-                                    TextButton(
-                                      onPressed: () async {
-                                        XFile? image =
-                                            await imagePicker.pickImage(
-                                                source: ImageSource.gallery,
-                                                imageQuality: 100,
-                                                preferredCameraDevice:
-                                                    CameraDevice.front);
-                                        if (image != null) {
-                                          setState(() {
-                                            imageFile = File(image.path);
-                                          });
-                                          setImage(path: image.path);
-                                          // ignore: use_build_context_synchronously
-                                          Navigator.of(context,
-                                                  rootNavigator: true)
-                                              .pop('dialog');
-                                        }
-                                      },
-                                      style: TextButton.styleFrom(
-                                          elevation: 2,
+                          Visibility(
+                            visible: visible,
+                            child: Card(
+                              color: const Color(0xFFFFFBD6),
+                              child: Padding(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
+                                    15, 1, 15, 1),
+                                child: Center(
+                                  child: imageFile != null
+                                      ? Image.file(
+                                          imageFile,
+                                          width:
+                                              MediaQuery.of(context).size.width,
+                                          height: 86.5 /
+                                              100 *
+                                              MediaQuery.of(context).size.width,
+                                          fit: BoxFit.contain,
+                                        )
+                                      : const CircularProgressIndicator(
                                           backgroundColor:
-                                              const Color(0xFF008B6A)),
-                                      child: const Text(
-                                        "Open gallery",
-                                        style: TextStyle(
-                                          fontFamily: "ComicNeue",
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                              Color.fromARGB(255, 65, 65, 65),
                                           color: Color(0xFFFFFBD6),
                                         ),
-                                      ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                                0, 20, 0, 0),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFFFBD6),
+                              ),
+                              onPressed: () {
+                                imageClickCamera();
+                              },
+                              child: const Padding(
+                                padding: EdgeInsetsDirectional.fromSTEB(
+                                    0, 7.5, 0, 7.5),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.max,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Icon(
+                                      Icons.camera_alt_rounded,
+                                      color: Color.fromARGB(255, 70, 70, 70),
                                     ),
-                                    TextButton(
-                                      onPressed: () async {
-                                        XFile? image =
-                                            await imagePicker.pickImage(
-                                                source: ImageSource.camera,
-                                                imageQuality: 100,
-                                                preferredCameraDevice:
-                                                    CameraDevice.front);
-                                        if (image != null) {
-                                          setState(() {
-                                            imageFile = File(image.path);
-                                          });
-                                          setImage(path: image.path);
-                                          // ignore: use_build_context_synchronously
-                                          Navigator.of(context,
-                                                  rootNavigator: true)
-                                              .pop('dialog');
-                                        }
-                                      },
-                                      style: TextButton.styleFrom(
-                                          elevation: 2,
-                                          backgroundColor:
-                                              const Color(0xFF008B6A)),
-                                      child: const Text(
-                                        "Open camera",
+                                    Padding(
+                                      padding: EdgeInsetsDirectional.fromSTEB(
+                                          5, 5, 0, 5),
+                                      child: Text(
+                                        "Upload from Camera!",
                                         style: TextStyle(
                                           fontFamily: "ComicNeue",
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
-                                          color: Color(0xFFFFFBD6),
+                                          color:
+                                              Color.fromARGB(255, 65, 65, 65),
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              );
-                            },
-                            child: Padding(
-                              padding: imageFile != null
-                                  ? const EdgeInsetsDirectional.fromSTEB(
-                                      0, 15, 0, 15)
-                                  : const EdgeInsetsDirectional.fromSTEB(
-                                      0, 7.5, 0, 7.5),
-                              child: Center(
-                                child: imageFile != null
-                                    ? FutureBuilder<ui.Image>(
-                                        future: decodeImageFromList(
-                                            File(imageFile.path)
-                                                .readAsBytesSync()),
-                                        builder: (BuildContext context,
-                                            AsyncSnapshot<ui.Image> snapshot) {
-                                          if (snapshot.hasData) {
-                                            final image = snapshot.data!;
-                                            final aspectRatio =
-                                                image.width.toDouble() /
-                                                    image.height.toDouble();
-                                            final height =
-                                                MediaQuery.of(context)
-                                                        .size
-                                                        .width /
-                                                    aspectRatio;
-                                            return Image.file(
-                                              imageFile,
-                                              width: MediaQuery.of(context)
-                                                  .size
-                                                  .width,
-                                              height: 80 / 100 * height,
-                                              fit: BoxFit.contain,
-                                            );
-                                          } else {
-                                            return const CircularProgressIndicator();
-                                          }
-                                        },
-                                      )
-                                    : const Row(
-                                        mainAxisSize: MainAxisSize.max,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: <Widget>[
-                                          Icon(
-                                            Icons.camera_alt_rounded,
-                                            color:
-                                                Color.fromARGB(255, 70, 70, 70),
-                                          ),
-                                          Padding(
-                                            padding:
-                                                EdgeInsetsDirectional.fromSTEB(
-                                                    5, 5, 0, 5),
-                                            child: Text(
-                                              "Upload",
-                                              style: TextStyle(
-                                                fontFamily: "ComicNeue",
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: Color.fromARGB(
-                                                    255, 65, 65, 65),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                                0, 20, 0, 0),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFFFBD6),
+                              ),
+                              onPressed: () {
+                                imageClickGallery();
+                              },
+                              child: const Padding(
+                                padding: EdgeInsetsDirectional.fromSTEB(
+                                    0, 7.5, 0, 7.5),
+                                child: Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.max,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: <Widget>[
+                                      Icon(
+                                        Icons.photo_library_rounded,
+                                        color: Color.fromARGB(255, 70, 70, 70),
                                       ),
+                                      Padding(
+                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                            5, 5, 0, 5),
+                                        child: Text(
+                                          "Upload from Gallery!",
+                                          style: TextStyle(
+                                            fontFamily: "ComicNeue",
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color:
+                                                Color.fromARGB(255, 65, 65, 65),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -468,23 +451,8 @@ class _PhotoState extends State<Photo> {
                                       ),
                                       actions: <Widget>[
                                         TextButton(
-                                          onPressed: () async {
-                                            XFile? image =
-                                                await imagePicker.pickImage(
-                                                    source: ImageSource.gallery,
-                                                    imageQuality: 100,
-                                                    preferredCameraDevice:
-                                                        CameraDevice.front);
-                                            if (image != null) {
-                                              setState(() {
-                                                imageFile = File(image.path);
-                                              });
-                                              setImage(path: image.path);
-                                              // ignore: use_build_context_synchronously
-                                              Navigator.of(context,
-                                                      rootNavigator: true)
-                                                  .pop('dialog');
-                                            }
+                                          onPressed: () {
+                                            imageClickGallery();
                                           },
                                           style: TextButton.styleFrom(
                                               elevation: 2,
@@ -501,23 +469,8 @@ class _PhotoState extends State<Photo> {
                                           ),
                                         ),
                                         TextButton(
-                                          onPressed: () async {
-                                            XFile? image =
-                                                await imagePicker.pickImage(
-                                                    source: ImageSource.camera,
-                                                    imageQuality: 100,
-                                                    preferredCameraDevice:
-                                                        CameraDevice.front);
-                                            if (image != null) {
-                                              setState(() {
-                                                imageFile = File(image.path);
-                                              });
-                                              setImage(path: image.path);
-                                              // ignore: use_build_context_synchronously
-                                              Navigator.of(context,
-                                                      rootNavigator: true)
-                                                  .pop('dialog');
-                                            }
+                                          onPressed: () {
+                                            imageClickCamera();
                                           },
                                           style: TextButton.styleFrom(
                                               elevation: 2,

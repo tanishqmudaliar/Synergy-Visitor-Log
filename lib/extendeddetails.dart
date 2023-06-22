@@ -304,7 +304,7 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                               // recognition is not yet ready or not supported on
                               // the target device
                               : speechEnabled
-                                  ? "Tap the microphone and start speaking..."
+                                  ? "Tap the microphone to start listening..."
                                   : "Speech not available",
                           textAlign: TextAlign.center,
                           style: const TextStyle(

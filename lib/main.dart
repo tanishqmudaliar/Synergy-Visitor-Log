@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
+import "package:synergyvisitorlog/in.dart";
 import "package:synergyvisitorlog/name.dart";
 import "package:firebase_core/firebase_core.dart";
 
@@ -135,7 +136,14 @@ class _MyAppState extends State<MyApp> {
                                         const EdgeInsetsDirectional.fromSTEB(
                                             2, 2, 10, 2),
                                     child: ElevatedButton(
-                                      onPressed: () {},
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => const In(),
+                                          ),
+                                        );
+                                      },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             const Color(0xFFFFFBD6),
