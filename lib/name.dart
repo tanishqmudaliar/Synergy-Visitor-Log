@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:synergyvisitorlog/extendeddetails.dart";
 import "package:synergyvisitorlog/photo.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
@@ -15,7 +16,7 @@ class Name extends StatefulWidget {
 class _NameState extends State<Name> {
   final myName = TextEditingController(); // texteditingcontroller
   bool validate = false; // variable to store the bool value
-  final List<int> steps = [1, 2, 3]; // steps to enroll!
+  late List<int> stepsforenroll = []; // steps to enroll!
   SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
   bool speechEnabled = false; // Whether the speech is enabled or not
 
@@ -41,6 +42,15 @@ class _NameState extends State<Name> {
         myName.text = (prefs.getString("name"))!;
       });
     }
+    if (prefs.containsKey("steps")) {
+      List<String>? stepsString = prefs.getStringList("steps");
+      if (stepsString != null) {
+        List<int> steps = stepsString.map((step) => int.parse(step)).toList();
+        setState(() {
+          stepsforenroll = steps;
+        });
+      }
+    }
   }
 
   // Data "name" is being pushed into the local storage.
@@ -65,11 +75,30 @@ class _NameState extends State<Name> {
 
   // This is the callback that the SpeechToText plugin calls when the platform returns recognized words.
   void speechResult(SpeechRecognitionResult result) {
+    String recognizedWords = result.recognizedWords;
+    String capitalizedWords = capitalizeName(recognizedWords);
+
     setState(() {
-      myName.text = result.recognizedWords;
+      myName.text = capitalizedWords;
       myName.selection =
           TextSelection.fromPosition(TextPosition(offset: myName.text.length));
     });
+  }
+
+  String capitalizeName(String input) {
+    if (input.isEmpty) {
+      return input;
+    }
+
+    List<String> words = input.toLowerCase().split(' ');
+
+    for (int i = 0; i < words.length; i++) {
+      if (words[i].isNotEmpty) {
+        words[i] = words[i][0].toUpperCase() + words[i].substring(1);
+      }
+    }
+
+    return words.join(' ');
   }
 
   // Clean up the controller when the widget is disposed.
@@ -88,7 +117,6 @@ class _NameState extends State<Name> {
           children: <Widget>[
             Container(
               width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -101,276 +129,289 @@ class _NameState extends State<Name> {
                   end: Alignment.bottomCenter,
                 ),
               ),
-            ),
-            Container(
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height,
-              color: const Color.fromARGB(120, 255, 255, 255),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Container(
-                    width: 150,
-                    height: 150,
-                    decoration: const BoxDecoration(
-                      color: Color.fromARGB(255, 254, 227, 227),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Image.asset(
-                      "assets/images/logo.png",
-                      width: MediaQuery.of(context).size.width,
-                      height: 100,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(0, 20, 0, 0),
-                    child: Text(
-                      "Enroll!",
-                      style: TextStyle(
-                        fontFamily: "MonomaniacOne",
-                        fontSize: 36,
+              child: Container(
+                width: MediaQuery.of(context).size.width,
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height,
+                ),
+                color: const Color.fromARGB(120, 255, 255, 255),
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Container(
+                      width: 150,
+                      height: 150,
+                      decoration: const BoxDecoration(
+                        color: Color.fromARGB(255, 254, 227, 227),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Image.asset(
+                        "assets/images/logo.png",
+                        width: MediaQuery.of(context).size.width,
+                        height: 100,
+                        fit: BoxFit.contain,
                       ),
                     ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(0, 8, 0, 0),
-                    child: Text(
-                      "Please enter your name!",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: "ComicNeue",
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Color.fromARGB(255, 65, 65, 65),
+                    const Padding(
+                      padding: EdgeInsetsDirectional.fromSTEB(0, 20, 0, 0),
+                      child: Text(
+                        "Enroll!",
+                        style: TextStyle(
+                          fontFamily: "MonomaniacOne",
+                          fontSize: 36,
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding:
-                        const EdgeInsetsDirectional.fromSTEB(20, 15, 20, 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.max,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        Stack(
-                          alignment: Alignment.center,
-                          children: <Widget>[
-                            SizedBox(
-                              width:
-                                  85 / 100 * MediaQuery.of(context).size.width,
-                              child: const Divider(
-                                color: Color(0xFFFFFBD6),
-                                thickness: 2,
+                    const Padding(
+                      padding: EdgeInsetsDirectional.fromSTEB(0, 8, 0, 0),
+                      child: Text(
+                        "Please enter your name!",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: "ComicNeue",
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Color.fromARGB(255, 65, 65, 65),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding:
+                          const EdgeInsetsDirectional.fromSTEB(20, 15, 20, 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.max,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Stack(
+                            alignment: Alignment.center,
+                            children: <Widget>[
+                              SizedBox(
+                                width: 85 /
+                                    100 *
+                                    MediaQuery.of(context).size.width,
+                                child: const Divider(
+                                  color: Color(0xFFFFFBD6),
+                                  thickness: 2,
+                                ),
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: <Widget>[
+                                  for (var step in stepsforenroll)
+                                    GestureDetector(
+                                      onTap: () {
+                                        // Define the navigation logic based on the step number
+                                        if (step == 1) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => const Name(),
+                                            ),
+                                          );
+                                          setName();
+                                        } else if (step == 2) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => const Mobile(),
+                                            ),
+                                          );
+                                          setName();
+                                        } else if (step == 3) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => const Photo(),
+                                            ),
+                                          );
+                                          setName();
+                                        } else if (step == 4) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const ExtendedDetails(),
+                                            ),
+                                          );
+                                          setName();
+                                        }
+                                      },
+                                      child: Icon(
+                                        Icons.circle,
+                                        color: step == 1
+                                            ? const Color(0xFF008B6A)
+                                            : const Color(0xFFFFFBD6),
+                                        size: step == 1 ? 38.0 : 22.0,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                                0, 10, 0, 15),
+                            child: Text(
+                              // If listening is active show the recognized words
+                              speechToText.isListening
+                                  ? "Listening..."
+                                  // If listening isn"t active but could be tell the user
+                                  // how to start it, otherwise indicate that speech
+                                  // recognition is not yet ready or not supported on
+                                  // the target device
+                                  : speechEnabled
+                                      ? "Tap the microphone and start speaking..."
+                                      : "Speech not available",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: "ComicNeue",
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Color.fromARGB(255, 65, 65, 65),
                               ),
                             ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: <Widget>[
-                                for (var step in steps)
-                                  GestureDetector(
-                                    onTap: () {
-                                      // Define the navigation logic based on the step number
-                                      if (step == 1) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => const Name(),
-                                          ),
-                                        );
-                                        setName();
-                                      } else if (step == 2) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => const Mobile(),
-                                          ),
-                                        );
-                                        setName();
-                                      } else if (step == 3) {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => const Photo(),
-                                          ),
-                                        );
-                                        setName();
-                                      }
-                                    },
-                                    child: Icon(
-                                      Icons.circle,
-                                      color: step == 1
-                                          ? const Color(0xFF008B6A)
-                                          : const Color(0xFFFFFBD6),
-                                      size: step == 1 ? 38.0 : 22.0,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              0, 10, 0, 15),
-                          child: Text(
-                            // If listening is active show the recognized words
-                            speechToText.isListening
-                                ? "Listening..."
-                                // If listening isn"t active but could be tell the user
-                                // how to start it, otherwise indicate that speech
-                                // recognition is not yet ready or not supported on
-                                // the target device
-                                : speechEnabled
-                                    ? "Tap the microphone and start speaking..."
-                                    : "Speech not available",
-                            textAlign: TextAlign.center,
+                          ),
+                          TextField(
+                            controller: myName,
                             style: const TextStyle(
                               fontFamily: "ComicNeue",
                               fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: Color.fromARGB(255, 65, 65, 65),
-                            ),
-                          ),
-                        ),
-                        TextField(
-                          controller: myName,
-                          style: const TextStyle(
-                            fontFamily: "ComicNeue",
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Color.fromARGB(255, 65, 65, 65),
-                          ),
-                          cursorColor: const Color.fromARGB(255, 70, 70, 70),
-                          obscureText: false,
-                          textCapitalization: TextCapitalization.words,
-                          decoration: InputDecoration(
-                            labelText: "Name",
-                            labelStyle: const TextStyle(
-                              fontFamily: "ComicNeue",
-                              fontWeight: FontWeight.bold,
                               fontSize: 16,
                               color: Color.fromARGB(255, 65, 65, 65),
                             ),
-                            hintText: "Eg: Virat Kohli",
-                            hintStyle: const TextStyle(
-                              fontFamily: "ComicNeue",
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Color.fromARGB(255, 65, 65, 65),
-                            ),
-                            errorText:
-                                validate ? "Please enter your name!" : null,
-                            errorStyle: const TextStyle(
-                              fontFamily: "ComicNeue",
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Color(0xFFFF0000),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Color(0xFFFFFBD6),
-                                width: 2,
+                            cursorColor: const Color.fromARGB(255, 70, 70, 70),
+                            obscureText: false,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: InputDecoration(
+                              labelText: "Name",
+                              labelStyle: const TextStyle(
+                                fontFamily: "ComicNeue",
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Color.fromARGB(255, 65, 65, 65),
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Color(0xFF008B6A),
-                                width: 2,
+                              hintText: "Eg: Virat Kohli",
+                              hintStyle: const TextStyle(
+                                fontFamily: "ComicNeue",
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Color.fromARGB(255, 65, 65, 65),
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            errorBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
+                              errorText:
+                                  validate ? "Please enter your name!" : null,
+                              errorStyle: const TextStyle(
+                                fontFamily: "ComicNeue",
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                                 color: Color(0xFFFF0000),
-                                width: 2,
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            focusedErrorBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(
-                                color: Color(0xFFFF0000),
-                                width: 2,
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFFFFBD6),
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            contentPadding:
-                                const EdgeInsetsDirectional.fromSTEB(
-                                    20, 20, 20, 20),
-                            suffixIcon: IconButton(
-                              icon: const Icon(
-                                Icons.mic_rounded,
-                                color: Color.fromARGB(255, 70, 70, 70),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF008B6A),
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              onPressed: // If not yet listening for speech start, otherwise stop
-                                  speechToText.isNotListening
-                                      ? startListening
-                                      : stopListening,
+                              errorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFFF0000),
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFFF0000),
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              contentPadding:
+                                  const EdgeInsetsDirectional.fromSTEB(
+                                      20, 20, 20, 20),
+                              suffixIcon: IconButton(
+                                icon: const Icon(
+                                  Icons.mic_rounded,
+                                  color: Color.fromARGB(255, 70, 70, 70),
+                                ),
+                                onPressed: // If not yet listening for speech start, otherwise stop
+                                    speechToText.isNotListening
+                                        ? startListening
+                                        : stopListening,
+                              ),
                             ),
+                            keyboardType: TextInputType.name,
                           ),
-                          keyboardType: TextInputType.name,
-                        ),
-                        Padding(
-                          padding: const EdgeInsetsDirectional.fromSTEB(
-                              0, 20, 0, 20),
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFFFBD6),
-                            ),
-                            onPressed: () {
-                              if (myName.text.isEmpty == true) {
-                                setState(() {
-                                  myName.text.isEmpty
-                                      ? validate = true
-                                      : validate = false;
-                                });
-                              } else {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const Mobile(),
-                                  ),
-                                );
-                                setName();
-                              }
-                            },
-                            child: const Padding(
-                              padding:
-                                  EdgeInsetsDirectional.fromSTEB(0, 10, 0, 10),
-                              child: Center(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: <Widget>[
-                                    Icon(
-                                      Icons.arrow_forward_ios_rounded,
-                                      color: Color.fromARGB(255, 70, 70, 70),
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                                0, 20, 0, 20),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFFFBD6),
+                              ),
+                              onPressed: () {
+                                if (myName.text.isEmpty == true) {
+                                  setState(() {
+                                    myName.text.isEmpty
+                                        ? validate = true
+                                        : validate = false;
+                                  });
+                                } else {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const Mobile(),
                                     ),
-                                    Padding(
-                                      padding: EdgeInsetsDirectional.fromSTEB(
-                                          5, 0, 0, 0),
-                                      child: Text(
-                                        "Next",
-                                        style: TextStyle(
-                                          fontFamily: "ComicNeue",
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color:
-                                              Color.fromARGB(255, 65, 65, 65),
-                                        ),
+                                  );
+                                  setName();
+                                }
+                              },
+                              child: const Padding(
+                                padding: EdgeInsetsDirectional.fromSTEB(
+                                    0, 10, 0, 10),
+                                child: Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.max,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: <Widget>[
+                                      Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        color: Color.fromARGB(255, 70, 70, 70),
                                       ),
-                                    )
-                                  ],
+                                      Padding(
+                                        padding: EdgeInsetsDirectional.fromSTEB(
+                                            5, 0, 0, 0),
+                                        child: Text(
+                                          "Next",
+                                          style: TextStyle(
+                                            fontFamily: "ComicNeue",
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color:
+                                                Color.fromARGB(255, 65, 65, 65),
+                                          ),
+                                        ),
+                                      )
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
