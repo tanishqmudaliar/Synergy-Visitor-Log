@@ -1,32 +1,28 @@
 import "package:cloud_firestore/cloud_firestore.dart";
-import "package:firebase_storage/firebase_storage.dart" as firebase_storage;
-import "package:flutter/material.dart";
+import 'package:flutter/material.dart';
 import "package:flutter/services.dart";
+import "package:intl/intl.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
-import 'package:intl/intl.dart';
-import "main.dart";
+import "package:synergyvisitorlog/main.dart";
 
-class In extends StatefulWidget {
-  const In({super.key});
+class Out extends StatefulWidget {
+  const Out({super.key});
 
   @override
-  State<In> createState() => _InState();
+  State<Out> createState() => _OutState();
 }
 
-class _InState extends State<In> with SingleTickerProviderStateMixin {
+class _OutState extends State<Out> with SingleTickerProviderStateMixin {
   String enteredId = ''; // id of the entered state
   final myNumber = TextEditingController(); // texteditingcontroller
   SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
   bool speechEnabled = false; // Whether the speech is enabled or not
-  List<Map<String, dynamic>> allData = []; // List of all users data
-  List<String> photoUrls = []; // List of all users images
-  bool isLoading = true; // Variable to track loading state
   bool isUser = false; // Variable to whether the users are logged in or not
-  String selectedOption = 'Select Host'; // Tracks the selected dropdown option
-  List<String> staffList = ['Select Host']; // List of dropdown options
-  final GlobalKey<ScaffoldMessengerState> scaffoldKey =
-      GlobalKey<ScaffoldMessengerState>(); // Show snackbar
+  final GlobalKey<ScaffoldMessengerState> scaffoldKey = GlobalKey<
+      ScaffoldMessengerState>(); // Show snackbar  // This runs only once when the screen is being displayed.
+  bool isLoading = true; // Variable to track loading state
+  List<Map<String, dynamic>> allData = []; // List of all users data
   String date = DateFormat('dd-MM-yyyy|kk:mm').format(DateTime.now());
   late AnimationController _animationController; // AnimationController
 
@@ -80,27 +76,8 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
       isLoading = true;
     });
 
-    QuerySnapshot staff =
-        await FirebaseFirestore.instance.collection("staff").get();
-
-    setState(() {
-      staffList = staff.docs.map((doc) => doc.id).toList();
-    });
-
     QuerySnapshot snapshot =
-        await FirebaseFirestore.instance.collection("users").get();
-
-    firebase_storage.ListResult result = await firebase_storage
-        .FirebaseStorage.instance
-        .ref(
-            'users') // Replace 'users' with the actual folder name in Firebase Storage
-        .listAll();
-
-    List<String> photoUrls = [];
-    for (var photoRef in result.items) {
-      String url = await photoRef.getDownloadURL();
-      photoUrls.add(url);
-    }
+        await FirebaseFirestore.instance.collection("in").get();
     // Update loading state to false after fetching users
     isLoading = false;
     if (mounted) {
@@ -108,18 +85,24 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
         if (snapshot.docs.isEmpty == false) {
           isUser = true;
           // Update allData and photoUrls with fetched data
-          allData = snapshot.docs
-              .map((doc) => {
-                    "id": doc.id,
-                    "name": (doc.data() as Map<String, dynamic>)["name"],
-                    "number": (doc.data() as Map<String, dynamic>)["phone"],
-                    "cname":
-                        (doc.data() as Map<String, dynamic>)["companyName"],
-                    "cdress":
-                        (doc.data() as Map<String, dynamic>)["companyAddress"],
-                    "url": photoUrls.isNotEmpty ? photoUrls.removeAt(0) : null,
-                  })
-              .toList();
+          allData = snapshot.docs.map((doc) {
+            final timestamp =
+                (doc.data() as Map<String, dynamic>)["inDateAndTime"];
+            final dateTime = DateTime.fromMillisecondsSinceEpoch(
+                timestamp.seconds * 1000 + timestamp.nanoseconds ~/ 1000000);
+            final formattedDateTime =
+                DateFormat('dd-MM-yyyy | HH:mm').format(dateTime);
+
+            return {
+              "id": doc.id,
+              "name": (doc.data() as Map<String, dynamic>)["name"],
+              "number": (doc.data() as Map<String, dynamic>)["number"],
+              "in": formattedDateTime,
+              "timestamp":
+                  (doc.data() as Map<String, dynamic>)["inDateAndTime"],
+              "url": (doc.data() as Map<String, dynamic>)["url"],
+            };
+          }).toList();
           // Sort the allData list based on the relevance of enteredId
           allData.sort((a, b) {
             if (a['id'] == enteredId) {
@@ -136,135 +119,84 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
   }
 
   // Push data into the database
-  void checkNPush({
+  void checkNPull({
     required String id,
     required String name,
-    required String number,
-    required String url,
+    required String duration,
     required ScaffoldMessengerState scaffoldMessenger,
   }) async {
-    if (selectedOption == 'Select Host') {
-      // Show a pop-up dialog if selectedOption is true
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFFFFFBD6),
-            title: const Text(
-              "Choose the person whom you want to meet!",
-              style: TextStyle(
-                fontFamily: "ComicNeue",
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: Color.fromARGB(255, 65, 65, 65),
-              ),
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFFFFFBD6),
+          title: const Text(
+            "Please Confirm!",
+            style: TextStyle(
+              fontFamily: "ComicNeue",
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Color.fromARGB(255, 65, 65, 65),
             ),
-            content: const Text(
-              "Please choose the person whom you are going to meet for security purposes!",
-              style: TextStyle(
-                fontFamily: "ComicNeue",
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color.fromARGB(255, 65, 65, 65),
-              ),
+          ),
+          content: const Text(
+            "Are you sure you want to log out?",
+            style: TextStyle(
+              fontFamily: "ComicNeue",
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Color.fromARGB(255, 65, 65, 65),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: TextButton.styleFrom(
-                    elevation: 2, backgroundColor: const Color(0xFF008B6A)),
-                child: const Text(
-                  "OK",
-                  style: TextStyle(
-                    fontFamily: "ComicNeue",
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFFFFFBD6),
-                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                  elevation: 2, backgroundColor: const Color(0xFF008B6A)),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(
+                  fontFamily: "ComicNeue",
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Color(0xFFFFFBD6),
                 ),
               ),
-            ],
-          );
-        },
-      );
-    } else {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFFFFFBD6),
-            title: const Text(
-              "Please Confirm!",
-              style: TextStyle(
-                fontFamily: "ComicNeue",
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: Color.fromARGB(255, 65, 65, 65),
-              ),
             ),
-            content: const Text(
-              "Are you sure you want to log in?",
-              style: TextStyle(
-                fontFamily: "ComicNeue",
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color.fromARGB(255, 65, 65, 65),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: TextButton.styleFrom(
-                    elevation: 2, backgroundColor: const Color(0xFF008B6A)),
-                child: const Text(
-                  "Cancel",
-                  style: TextStyle(
-                    fontFamily: "ComicNeue",
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFFFFFBD6),
-                  ),
+            TextButton(
+              onPressed: () {
+                runPull(
+                  id: id,
+                  name: name,
+                  duration: duration,
+                  scaffoldMessenger: scaffoldMessenger,
+                );
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                  elevation: 2, backgroundColor: const Color(0xFF008B6A)),
+              child: const Text(
+                "Confirm",
+                style: TextStyle(
+                  fontFamily: "ComicNeue",
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Color(0xFFFFFBD6),
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  runPush(
-                    id: id,
-                    name: name,
-                    number: number,
-                    url: url,
-                    scaffoldMessenger: scaffoldMessenger,
-                  );
-                  Navigator.of(context).pop();
-                },
-                style: TextButton.styleFrom(
-                    elevation: 2, backgroundColor: const Color(0xFF008B6A)),
-                child: const Text(
-                  "Confirm",
-                  style: TextStyle(
-                    fontFamily: "ComicNeue",
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFFFFFBD6),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-    }
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  void runPush({
+  void runPull({
     required String id,
     required String name,
-    required String number,
-    required String url,
+    required String duration,
     required ScaffoldMessengerState scaffoldMessenger,
   }) async {
     scaffoldMessenger.showSnackBar(
@@ -289,7 +221,7 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
               child: SizedBox(
                 width: 60 / 100 * MediaQuery.of(context).size.width,
                 child: Text(
-                  "Entering you in!\n$name",
+                  "Logging you out!\n$name",
                   style: const TextStyle(
                     fontFamily: "ComicNeue",
                     fontWeight: FontWeight.bold,
@@ -308,144 +240,95 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
         .collection("users")
         .doc(id)
         .collection("inAndOut")
-        .doc("$date-in");
+        .doc("$date-out");
 
     final inDB = FirebaseFirestore.instance.collection("in").doc(id);
 
     final data = {
-      "inDateAndTime": DateTime.now(),
-      "personMet": selectedOption,
+      "outDateAndTime": DateTime.now(),
+      "duration": duration,
     };
 
-    final inData = {
-      "inDateAndTime": DateTime.now(),
-      "name": name,
-      "number": number,
-      "url": url,
-    };
-
-    inDB.get().then((DocumentSnapshot documentSnapshot) async {
-      if (documentSnapshot.exists) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              mainAxisSize: MainAxisSize.max,
-              children: <Widget>[
-                const Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                  child: Icon(
-                    Icons.error_rounded,
-                    color: Color(0xFFFFFBD6),
-                    size: 22,
-                  ),
+    try {
+      await userDB.set(data);
+      await inDB.delete();
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: Icon(
+                  Icons.done_all_rounded,
+                  color: Color(0xFFFFFBD6),
+                  size: 22,
                 ),
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                  child: SizedBox(
-                    // ignore: use_build_context_synchronously
-                    width: 60 / 100 * MediaQuery.of(context).size.width,
-                    child: const Text(
-                      "You're already logged in please log out before logging in again!",
-                      style: TextStyle(
-                        fontFamily: "ComicNeue",
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFFFFFBD6),
-                      ),
+              ),
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: SizedBox(
+                  // ignore: use_build_context_synchronously
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
+                  child: const Text(
+                    "You're out!\nThanks for visiting, hope to see you again.",
+                    style: TextStyle(
+                      fontFamily: "ComicNeue",
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFFFFFBD6),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        );
-      } else {
-        try {
-          await userDB.set(data);
-          await inDB.set(inData);
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                mainAxisSize: MainAxisSize.max,
-                children: <Widget>[
-                  const Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                    child: Icon(
-                      Icons.done_all_rounded,
-                      color: Color(0xFFFFFBD6),
-                      size: 22,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                    child: SizedBox(
-                      // ignore: use_build_context_synchronously
-                      width: 60 /
-                          100 *
-                          // ignore: use_build_context_synchronously
-                          MediaQuery.of(context).size.width,
-                      child: const Text(
-                        "You're in",
-                        style: TextStyle(
-                          fontFamily: "ComicNeue",
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFFFFFBD6),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 2)); // Wait for 4 seconds
+      // ignore: use_build_context_synchronously
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MyApp()),
+        (route) => false,
+      );
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: Icon(
+                  Icons.error_outline_outlined,
+                  color: Color(0xFFFFFBD6),
+                  size: 22,
+                ),
               ),
-            ),
-          );
-          await Future.delayed(const Duration(seconds: 2));
-          // ignore: use_build_context_synchronously
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const MyApp()),
-            (route) => false,
-          );
-        } catch (e) {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                mainAxisSize: MainAxisSize.max,
-                children: <Widget>[
-                  const Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                    child: Icon(
-                      Icons.error_outline_outlined,
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: SizedBox(
+                  // ignore: use_build_context_synchronously
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
+                  child: Text(
+                    'Error: $e!',
+                    style: const TextStyle(
+                      fontFamily: "ComicNeue",
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                       color: Color(0xFFFFFBD6),
-                      size: 22,
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                    child: SizedBox(
-                      // ignore: use_build_context_synchronously
-                      width: 60 / 100 * MediaQuery.of(context).size.width,
-                      child: Text(
-                        'Error: $e!',
-                        style: const TextStyle(
-                          fontFamily: "ComicNeue",
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFFFFFBD6),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          );
-        }
-      }
-    });
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   // Clean up the controller when the widget is disposed.
@@ -465,7 +348,7 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
           backgroundColor: const Color(0xFFFFFBD6),
           foregroundColor: const Color.fromARGB(255, 70, 70, 70),
           title: const Text(
-            "In",
+            "Out",
             style: TextStyle(
               color: Color.fromARGB(255, 70, 70, 70),
             ),
@@ -503,7 +386,7 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
                         const Padding(
                           padding: EdgeInsetsDirectional.fromSTEB(0, 20, 0, 0),
                           child: Text(
-                            "Log In!",
+                            "Log Out!",
                             style: TextStyle(
                               fontFamily: "MonomaniacOne",
                               fontSize: 36,
@@ -528,57 +411,6 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
                               color: Color.fromARGB(255, 65, 65, 65),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding:
-                              const EdgeInsetsDirectional.fromSTEB(0, 10, 0, 0),
-                          child: Container(
-                            width: MediaQuery.of(context).size.width,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xFFFFFBD6),
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: ButtonTheme(
-                                alignedDropdown: true,
-                                child: DropdownButton(
-                                  dropdownColor: const Color(0xFFFFFBD6),
-                                  value: selectedOption,
-                                  onChanged: (newValue) {
-                                    setState(() {
-                                      selectedOption = newValue!;
-                                    });
-                                  },
-                                  items: staffList
-                                      .map<DropdownMenuItem<String>>(
-                                          (String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(
-                                        value,
-                                        style: const TextStyle(
-                                          fontFamily: "ComicNeue",
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color:
-                                              Color.fromARGB(255, 65, 65, 65),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                  icon: const Icon(
-                                    Icons.arrow_drop_down_rounded,
-                                    color: Color.fromARGB(255, 70, 70, 70),
-                                    size: 36.0,
-                                  ),
-                                ),
-                              ),
                             ),
                           ),
                         ),
@@ -687,11 +519,31 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
                                       .map(
                                         (data) => GestureDetector(
                                           onTap: () {
-                                            checkNPush(
+                                            Timestamp timestamp =
+                                                data["timestamp"];
+                                            DateTime inDateTime =
+                                                timestamp.toDate();
+                                            DateTime currentDateTime =
+                                                DateTime.now();
+                                            Duration difference =
+                                                currentDateTime
+                                                    .difference(inDateTime);
+
+                                            int days = difference.inDays;
+                                            int hours = difference.inHours
+                                                .remainder(24);
+                                            int minutes = difference.inMinutes
+                                                .remainder(60);
+                                            int seconds = difference.inSeconds
+                                                .remainder(60);
+
+                                            String formattedTime =
+                                                '$days day $hours hours $minutes minutes $seconds seconds';
+
+                                            checkNPull(
                                               id: "${data["number"]}",
                                               name: "${data["name"]}",
-                                              number: "${data["number"]}",
-                                              url: "${data["url"]}",
+                                              duration: formattedTime,
                                               scaffoldMessenger:
                                                   scaffoldKey.currentState!,
                                             );
@@ -768,7 +620,7 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
                                                           thickness: 2,
                                                         ),
                                                         Text(
-                                                          "Company: ${data["cname"]}",
+                                                          "In Date & Time: ${data["in"]}",
                                                           style:
                                                               const TextStyle(
                                                             fontFamily:
@@ -776,28 +628,6 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
                                                             fontWeight:
                                                                 FontWeight.bold,
                                                             fontSize: 14,
-                                                            color:
-                                                                Color.fromARGB(
-                                                                    255,
-                                                                    50,
-                                                                    50,
-                                                                    50),
-                                                          ),
-                                                        ),
-                                                        const Divider(
-                                                          color: Color.fromARGB(
-                                                              255, 50, 50, 50),
-                                                          thickness: 2,
-                                                        ),
-                                                        Text(
-                                                          "Company Address: ${data["cdress"]}",
-                                                          style:
-                                                              const TextStyle(
-                                                            fontFamily:
-                                                                "ComicNeue",
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 12,
                                                             color:
                                                                 Color.fromARGB(
                                                                     255,
@@ -846,7 +676,7 @@ class _InState extends State<In> with SingleTickerProviderStateMixin {
                                       ),
                                       const Center(
                                         child: Text(
-                                          "No user found!\n\nPlease enroll first to log in.",
+                                          "No user found!\n\nPlease log in first to log out.",
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
                                             fontFamily: "ComicNeue",

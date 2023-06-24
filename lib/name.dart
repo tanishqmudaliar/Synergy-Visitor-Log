@@ -124,7 +124,7 @@ class _NameState extends State<Name> {
                     Color(0xFFFF0000),
                     Color(0xFFFFFBD6),
                   ],
-                  stops: [0.1, 0.45, 5],
+                  stops: [0.1, 0.45, 0.9],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomCenter,
                 ),
@@ -349,6 +349,23 @@ class _NameState extends State<Name> {
                                         : stopListening,
                               ),
                             ),
+                            onSubmitted: (value) {
+                              if (value.isEmpty == true) {
+                                setState(() {
+                                  value.isEmpty
+                                      ? validate = true
+                                      : validate = false;
+                                });
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const Mobile(),
+                                  ),
+                                );
+                                setName();
+                              }
+                            },
                             keyboardType: TextInputType.name,
                           ),
                           Padding(

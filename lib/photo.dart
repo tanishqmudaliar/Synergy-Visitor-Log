@@ -6,12 +6,10 @@ import "package:shared_preferences/shared_preferences.dart";
 import 'package:synergyvisitorlog/detailconfirm.dart';
 import "package:synergyvisitorlog/extendeddetails.dart";
 import "package:synergyvisitorlog/mobile.dart";
-import "package:synergyvisitorlog/name.dart";
+import 'package:synergyvisitorlog/name.dart';
 
 class Photo extends StatefulWidget {
-  const Photo({
-    super.key,
-  });
+  const Photo({Key? key}) : super(key: key);
 
   @override
   State<Photo> createState() => _PhotoState();
@@ -19,7 +17,7 @@ class Photo extends StatefulWidget {
 
 class _PhotoState extends State<Photo> {
   dynamic imageFile; // image file
-  dynamic imagePicker; // image picker
+  final ImagePicker imagePicker = ImagePicker(); // image picker
   String? myName; // user name
   String? myNumber; // user number
   bool visible = false; // visible
@@ -29,7 +27,6 @@ class _PhotoState extends State<Photo> {
   @override
   void initState() {
     super.initState();
-    imagePicker = ImagePicker();
     loadData();
   }
 
@@ -82,18 +79,20 @@ class _PhotoState extends State<Photo> {
   // Loads the saved data from the local storage.
   void loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (prefs.containsKey("imagePath") == true) {
+    if (prefs.containsKey("imagePath")) {
       setState(() {
         imageFile = File(prefs.getString("imagePath")!);
         visible = true;
       });
+    } else {
+      imageClickCamera();
     }
-    if (prefs.containsKey("name") == true) {
+    if (prefs.containsKey("name")) {
       setState(() {
         myName = prefs.getString("name")!;
       });
     }
-    if (prefs.containsKey("number") == true) {
+    if (prefs.containsKey("number")) {
       setState(() {
         myNumber = prefs.getString("number")!;
       });
@@ -125,7 +124,7 @@ class _PhotoState extends State<Photo> {
                     Color(0xFFFF0000),
                     Color(0xFFFFFBD6),
                   ],
-                  stops: [0.1, 0.45, 5],
+                  stops: [0.1, 0.45, 0.9],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomCenter,
                 ),
@@ -453,6 +452,7 @@ class _PhotoState extends State<Photo> {
                                         TextButton(
                                           onPressed: () {
                                             imageClickGallery();
+                                            Navigator.pop(context);
                                           },
                                           style: TextButton.styleFrom(
                                               elevation: 2,
@@ -471,6 +471,7 @@ class _PhotoState extends State<Photo> {
                                         TextButton(
                                           onPressed: () {
                                             imageClickCamera();
+                                            Navigator.pop(context);
                                           },
                                           style: TextButton.styleFrom(
                                               elevation: 2,

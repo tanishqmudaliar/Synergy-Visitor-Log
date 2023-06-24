@@ -2,7 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:synergyvisitorlog/extendeddetails.dart";
-import "package:synergyvisitorlog/name.dart";
+import 'package:synergyvisitorlog/name.dart';
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
 import "package:synergyvisitorlog/photo.dart";
@@ -113,7 +113,7 @@ class _MobileState extends State<Mobile> {
                     Color(0xFFFF0000),
                     Color(0xFFFFFBD6),
                   ],
-                  stops: [0.1, 0.45, 5],
+                  stops: [0.1, 0.45, 0.9],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomCenter,
                 ),
@@ -340,6 +340,23 @@ class _MobileState extends State<Mobile> {
                                         : stopListening,
                               ),
                             ),
+                            onSubmitted: (value) {
+                              if (value.isEmpty == true) {
+                                setState(() {
+                                  value.isEmpty
+                                      ? validate = true
+                                      : validate = false;
+                                });
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const Photo(),
+                                  ),
+                                );
+                                setNumber();
+                              }
+                            },
                             keyboardType: TextInputType.phone,
                             inputFormatters: <TextInputFormatter>[
                               FilteringTextInputFormatter.allow(

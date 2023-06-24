@@ -19,13 +19,15 @@ class ExtendedDetails extends StatefulWidget {
 class _ExtendedDetailsState extends State<ExtendedDetails> {
   final myCompanyName = TextEditingController(); // texteditingcontroller
   final myCompanyAddress = TextEditingController(); // texteditingcontroller
-  bool validate = false; // variable to store the bool value
+  bool validateCN = false; // variable to store the bool value
+  bool validateCA = false; // variable to store the bool value
   String? myName; // user name
   String? myNumber; // user number
   String? myImage; // user image
   final List<int> steps = [1, 2, 3, 4]; // steps to enroll!
   bool speechEnabled = false; // Whether the speech is enabled or not
   SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
+  FocusNode focusNodeCA = FocusNode(); // Defining the focus node
 
   // This runs only once when the screen is being displayed.
   @override
@@ -159,6 +161,15 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
     return words.join(' ');
   }
 
+  // Clean up the controller when the widget is disposed.
+  @override
+  void dispose() {
+    myCompanyName.dispose();
+    myCompanyAddress.dispose();
+    focusNodeCA.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,7 +183,7 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                 Color(0xFFFF0000),
                 Color(0xFFFFFBD6),
               ],
-              stops: [0.1, 0.45, 5],
+              stops: [0.1, 0.45, 0.9],
               begin: Alignment.topLeft,
               end: Alignment.bottomCenter,
             ),
@@ -343,7 +354,7 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                               fontSize: 16,
                               color: Color.fromARGB(255, 65, 65, 65),
                             ),
-                            errorText: validate
+                            errorText: validateCN
                                 ? "Please enter your company name!"
                                 : null,
                             errorStyle: const TextStyle(
@@ -394,12 +405,24 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                                       : stopListening,
                             ),
                           ),
+                          onSubmitted: (value) {
+                            if (value.isEmpty == true) {
+                              setState(() {
+                                value.isEmpty
+                                    ? validateCN = true
+                                    : validateCN = false;
+                              });
+                            } else {
+                              focusNodeCA.requestFocus();
+                            }
+                          },
                           keyboardType: TextInputType.name,
                         ),
                       ),
                       Padding(
                         padding: EdgeInsetsDirectional.fromSTEB(0, 10, 0, 20),
                         child: TextField(
+                          focusNode: focusNodeCA,
                           controller: myCompanyAddress,
                           maxLines:
                               null, // Allows for an unlimited number of lines
@@ -428,7 +451,7 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                               fontSize: 16,
                               color: Color.fromARGB(255, 65, 65, 65),
                             ),
-                            errorText: validate
+                            errorText: validateCA
                                 ? "Please enter your company address!"
                                 : null,
                             errorStyle: const TextStyle(
@@ -479,11 +502,36 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                                       : stopListening,
                             ),
                           ),
-                          keyboardType: TextInputType.multiline,
+                          onSubmitted: (value) {
+                            if (myCompanyName.text.isEmpty == true) {
+                              setState(() {
+                                myCompanyName.text.isEmpty
+                                    ? validateCN = true
+                                    : validateCN = false;
+                              });
+                            } else {
+                              if (value.isEmpty == true) {
+                                setState(() {
+                                  value.isEmpty
+                                      ? validateCA = true
+                                      : validateCA = false;
+                                });
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const DetailsConfirm(),
+                                  ),
+                                );
+                                setData();
+                              }
+                            }
+                          },
+                          keyboardType: TextInputType.streetAddress,
                         ),
                       ),
                       Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(0, 10, 0, 20),
+                        padding: EdgeInsetsDirectional.fromSTEB(0, 5, 0, 20),
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFFBD6),
@@ -492,15 +540,15 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                             if (myCompanyName.text.isEmpty == true) {
                               setState(() {
                                 myCompanyName.text.isEmpty
-                                    ? validate = true
-                                    : validate = false;
+                                    ? validateCN = true
+                                    : validateCN = false;
                               });
                             } else {
                               if (myCompanyAddress.text.isEmpty == true) {
                                 setState(() {
                                   myCompanyAddress.text.isEmpty
-                                      ? validate = true
-                                      : validate = false;
+                                      ? validateCA = true
+                                      : validateCA = false;
                                 });
                               } else {
                                 Navigator.push(
@@ -551,6 +599,14 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
             ),
           ),
         ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF008B6A),
+        onPressed: () {
+          Navigator.pop(context);
+        },
+        child: const Icon(Icons.arrow_back_ios_new_rounded),
       ),
     );
   }

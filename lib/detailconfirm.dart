@@ -7,7 +7,7 @@ import "package:shared_preferences/shared_preferences.dart";
 import "package:synergyvisitorlog/extendeddetails.dart";
 import "package:synergyvisitorlog/main.dart";
 import "package:synergyvisitorlog/mobile.dart";
-import "package:synergyvisitorlog/name.dart";
+import 'package:synergyvisitorlog/name.dart';
 import "package:synergyvisitorlog/photo.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
@@ -326,42 +326,44 @@ class _DetailsConfirmState extends State<DetailsConfirm>
     final database = FirebaseFirestore.instance.collection("users").doc(number);
     final storage = FirebaseStorage.instance.ref("users/$number.png");
 
-    scaffoldMessenger.showSnackBar(
-      SnackBar(
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          mainAxisSize: MainAxisSize.max,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-              child: RotationTransition(
-                turns: _animationController,
-                child: const Icon(
-                  Icons.sync_rounded,
-                  color: Color(0xFFFFFBD6),
-                  size: 22,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-              child: SizedBox(
-                width: 60 / 100 * MediaQuery.of(context).size.width,
-                child: Text(
-                  "Creating a new user!\n$name",
-                  style: const TextStyle(
-                    fontFamily: "ComicNeue",
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+    if (mounted) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: RotationTransition(
+                  turns: _animationController,
+                  child: const Icon(
+                    Icons.sync_rounded,
                     color: Color(0xFFFFFBD6),
+                    size: 22,
                   ),
                 ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: SizedBox(
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
+                  child: Text(
+                    "Creating a new user!\n$name",
+                    style: const TextStyle(
+                      fontFamily: "ComicNeue",
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFFFFFBD6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     try {
       await storage.putFile(image);
@@ -508,7 +510,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                       Color(0xFFFF0000),
                       Color(0xFFFFFBD6),
                     ],
-                    stops: [0.1, 0.45, 5],
+                    stops: [0.1, 0.45, 0.9],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomCenter,
                   ),
@@ -1034,23 +1036,9 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                     ),
                                     actions: <Widget>[
                                       TextButton(
-                                        onPressed: () async {
-                                          XFile? image =
-                                              await imagePicker.pickImage(
-                                                  source: ImageSource.gallery,
-                                                  imageQuality: 100,
-                                                  preferredCameraDevice:
-                                                      CameraDevice.front);
-                                          if (image != null) {
-                                            setState(() {
-                                              imageFile = File(image.path);
-                                              imagePath = image.path;
-                                            });
-                                            // ignore: use_build_context_synchronously
-                                            Navigator.of(context,
-                                                    rootNavigator: true)
-                                                .pop('dialog');
-                                          }
+                                        onPressed: () {
+                                          imageClickGallery();
+                                          Navigator.pop(context);
                                         },
                                         style: TextButton.styleFrom(
                                             elevation: 2,
@@ -1067,23 +1055,9 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                         ),
                                       ),
                                       TextButton(
-                                        onPressed: () async {
-                                          XFile? image =
-                                              await imagePicker.pickImage(
-                                                  source: ImageSource.camera,
-                                                  imageQuality: 100,
-                                                  preferredCameraDevice:
-                                                      CameraDevice.front);
-                                          if (image != null) {
-                                            setState(() {
-                                              imageFile = File(image.path);
-                                              imagePath = image.path;
-                                            });
-                                            // ignore: use_build_context_synchronously
-                                            Navigator.of(context,
-                                                    rootNavigator: true)
-                                                .pop('dialog');
-                                          }
+                                        onPressed: () {
+                                          imageClickCamera();
+                                          Navigator.pop(context);
                                         },
                                         style: TextButton.styleFrom(
                                             elevation: 2,
@@ -1180,10 +1154,10 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                         scaffoldKey.currentState!,
                                     companyName: extended
                                         ? myCompanyName.text
-                                        : "Not set",
+                                        : "Not defined",
                                     companyAddress: extended
                                         ? myCompanyAddress.text
-                                        : "Not set",
+                                        : "Not defined",
                                   );
                                 },
                                 child: const Padding(

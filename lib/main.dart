@@ -1,8 +1,10 @@
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:synergyvisitorlog/in.dart";
-import "package:synergyvisitorlog/name.dart";
+import "package:synergyvisitorlog/members.dart";
+import 'package:synergyvisitorlog/name.dart';
 import "package:firebase_core/firebase_core.dart";
+import "package:synergyvisitorlog/out.dart";
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,7 +66,7 @@ class _MyAppState extends State<MyApp> {
                         Color(0xFFFF0000),
                         Color(0xFFFFFBD6),
                       ],
-                      stops: [0.1, 0.45, 5],
+                      stops: [0.1, 0.45, 0.9],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomCenter,
                     ),
@@ -150,7 +152,7 @@ class _MyAppState extends State<MyApp> {
                                       ),
                                       child: const Padding(
                                         padding: EdgeInsetsDirectional.fromSTEB(
-                                            10, 10, 10, 10),
+                                            10, 15, 10, 15),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.max,
                                           mainAxisAlignment:
@@ -191,14 +193,21 @@ class _MyAppState extends State<MyApp> {
                                         const EdgeInsetsDirectional.fromSTEB(
                                             10, 2, 2, 2),
                                     child: ElevatedButton(
-                                      onPressed: () {},
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => const Out(),
+                                          ),
+                                        );
+                                      },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             const Color(0xFFFFFBD6),
                                       ),
                                       child: const Padding(
                                         padding: EdgeInsetsDirectional.fromSTEB(
-                                            10, 10, 10, 10),
+                                            10, 15, 10, 15),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.max,
                                           mainAxisAlignment:
@@ -259,7 +268,7 @@ class _MyAppState extends State<MyApp> {
                                       ),
                                       child: const Padding(
                                         padding: EdgeInsetsDirectional.fromSTEB(
-                                            10, 10, 10, 10),
+                                            10, 15, 10, 15),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.max,
                                           mainAxisAlignment:
@@ -296,21 +305,28 @@ class _MyAppState extends State<MyApp> {
                                         const EdgeInsetsDirectional.fromSTEB(
                                             10, 2, 2, 2),
                                     child: ElevatedButton(
-                                      onPressed: () {},
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => const Members(),
+                                          ),
+                                        );
+                                      },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             const Color(0xFFFFFBD6),
                                       ),
                                       child: const Padding(
                                         padding: EdgeInsetsDirectional.fromSTEB(
-                                            10, 10, 10, 10),
+                                            10, 15, 10, 15),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.max,
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: <Widget>[
                                             Icon(
-                                              Icons.accessibility_new_rounded,
+                                              Icons.people_alt_rounded,
                                               color: Color.fromARGB(
                                                   255, 70, 70, 70),
                                             ),
@@ -318,7 +334,7 @@ class _MyAppState extends State<MyApp> {
                                               padding: EdgeInsetsDirectional
                                                   .fromSTEB(5, 0, 0, 0),
                                               child: Text(
-                                                "Member's",
+                                                "Visitors",
                                                 style: TextStyle(
                                                   color: Color.fromARGB(
                                                       255, 70, 70, 70),
