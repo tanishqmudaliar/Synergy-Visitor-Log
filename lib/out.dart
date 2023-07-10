@@ -14,17 +14,15 @@ class Out extends StatefulWidget {
 }
 
 class _OutState extends State<Out> with SingleTickerProviderStateMixin {
-  String enteredId = ''; // id of the entered state
   final myNumber = TextEditingController(); // texteditingcontroller
   SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
   bool speechEnabled = false; // Whether the speech is enabled or not
   bool isUser = false; // Variable to whether the users are logged in or not
-  final GlobalKey<ScaffoldMessengerState> scaffoldKey = GlobalKey<
-      ScaffoldMessengerState>(); // Show snackbar  // This runs only once when the screen is being displayed.
   bool isLoading = true; // Variable to track loading state
   List<Map<String, dynamic>> allData = []; // List of all users data
-  String date = DateFormat('dd-MM-yyyy|kk:mm').format(DateTime.now());
   late AnimationController _animationController; // AnimationController
+  final GlobalKey<ScaffoldMessengerState> scaffoldKey =
+      GlobalKey<ScaffoldMessengerState>(); // Show snackbar
 
   // This runs only once when the screen is being displayed.
   @override
@@ -76,44 +74,78 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
       isLoading = true;
     });
 
-    QuerySnapshot snapshot =
-        await FirebaseFirestore.instance.collection("in").get();
-    // Update loading state to false after fetching users
-    isLoading = false;
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection("in")
+        .orderBy("createdAt",
+            descending:
+                true) // Assuming there's a "createdAt" field in the documents
+        .limit(5) // Fetch only the latest 5 documents
+        .get();
     if (mounted) {
       setState(() {
         if (snapshot.docs.isEmpty == false) {
+          isLoading = false;
           isUser = true;
           // Update allData and photoUrls with fetched data
           allData = snapshot.docs.map((doc) {
-            final timestamp =
-                (doc.data() as Map<String, dynamic>)["inDateAndTime"];
-            final dateTime = DateTime.fromMillisecondsSinceEpoch(
-                timestamp.seconds * 1000 + timestamp.nanoseconds ~/ 1000000);
-            final formattedDateTime =
-                DateFormat('dd-MM-yyyy | HH:mm').format(dateTime);
+            int millisecondsEpoch =
+                (doc.data() as Map<String, dynamic>)["createdAt"];
+            DateTime dateTime =
+                DateTime.fromMillisecondsSinceEpoch(millisecondsEpoch);
+            String formattedDateTime =
+                DateFormat('dd MMMM, yyyy | HH:mm').format(dateTime);
 
             return {
               "id": doc.id,
               "name": (doc.data() as Map<String, dynamic>)["name"],
               "number": (doc.data() as Map<String, dynamic>)["number"],
+              "timestamp": millisecondsEpoch,
               "in": formattedDateTime,
-              "timestamp":
-                  (doc.data() as Map<String, dynamic>)["inDateAndTime"],
               "url": (doc.data() as Map<String, dynamic>)["url"],
             };
           }).toList();
-          // Sort the allData list based on the relevance of enteredId
-          allData.sort((a, b) {
-            if (a['id'] == enteredId) {
-              return -1; // a is more relevant
-            } else if (b['id'] == enteredId) {
-              return 1; // b is more relevant
-            } else {
-              return 0; // a and b have equal relevance
-            }
-          });
+        } else {
+          isLoading = false;
+          isUser = false;
         }
+      });
+    }
+  }
+
+  // Fetch a single user
+  void fetchUser({required String number}) async {
+    // Set loading state to true when fetching users
+    setState(() {
+      isLoading = true;
+    });
+    final docRef = FirebaseFirestore.instance.collection("in").doc(number);
+    final snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      setState(() {
+        isLoading = false;
+        isUser = false;
+      });
+    } else {
+      await docRef.get().then((DocumentSnapshot doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        setState(() {
+          int millisecondsEpoch =
+              (doc.data() as Map<String, dynamic>)["createdAt"];
+          DateTime dateTime =
+              DateTime.fromMillisecondsSinceEpoch(millisecondsEpoch);
+          String formattedDateTime =
+              DateFormat('dd MMMM, yyyy | HH:mm').format(dateTime);
+          allData.add({
+            "id": doc.id,
+            "name": data["name"],
+            "number": data["number"],
+            "timestamp": millisecondsEpoch,
+            "in": formattedDateTime,
+            "url": data["url"],
+          });
+          isLoading = false;
+          isUser = true;
+        });
       });
     }
   }
@@ -209,10 +241,14 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
               padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
               child: RotationTransition(
                 turns: _animationController,
-                child: const Icon(
-                  Icons.sync_rounded,
-                  color: Color(0xFFFFFBD6),
-                  size: 22,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.diagonal3Values(-1.0, 1.0, 1.0),
+                  child: const Icon(
+                    Icons.sync_rounded,
+                    color: Color(0xFFFFFBD6),
+                    size: 22,
+                  ),
                 ),
               ),
             ),
@@ -235,6 +271,7 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
         ),
       ),
     );
+    String date = DateFormat('dd-MM-yyyy|kk:mm').format(DateTime.now());
 
     final userDB = FirebaseFirestore.instance
         .collection("users")
@@ -418,14 +455,16 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
                           padding:
                               const EdgeInsetsDirectional.fromSTEB(0, 20, 0, 0),
                           child: TextField(
-                            onChanged: (value) {
-                              setState(() {
-                                enteredId = value;
-                              });
-                              fetchUsers();
+                            onSubmitted: (value) {
+                              allData.clear();
+                              if (value.isNotEmpty) {
+                                fetchUser(number: value);
+                              }
                             },
-                            maxLength: 10,
-                            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
                             controller: myNumber,
                             style: const TextStyle(
                               fontFamily: "ComicNeue",
@@ -519,10 +558,11 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
                                       .map(
                                         (data) => GestureDetector(
                                           onTap: () {
-                                            Timestamp timestamp =
+                                            int millisecondsEpoch =
                                                 data["timestamp"];
-                                            DateTime inDateTime =
-                                                timestamp.toDate();
+                                            DateTime inDateTime = DateTime
+                                                .fromMillisecondsSinceEpoch(
+                                                    millisecondsEpoch);
                                             DateTime currentDateTime =
                                                 DateTime.now();
                                             Duration difference =
@@ -639,30 +679,55 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
                                                       ],
                                                     ),
                                                   ),
-                                                  Container(
-                                                    width: 100,
-                                                    height: 100,
-                                                    decoration:
-                                                        const BoxDecoration(
-                                                      color: Color.fromARGB(
-                                                          255, 254, 227, 227),
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                    child: ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              15),
-                                                      child: Image.network(
-                                                        "${data["url"]}",
-                                                        width: MediaQuery.of(
-                                                                context)
-                                                            .size
-                                                            .width,
-                                                        height: 100,
-                                                        fit: BoxFit.contain,
-                                                      ),
-                                                    ),
-                                                  ),
+                                                  data["url"] == null
+                                                      ? Container(
+                                                          width: 100,
+                                                          height: 100,
+                                                          decoration:
+                                                              const BoxDecoration(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    254,
+                                                                    227,
+                                                                    227),
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                        )
+                                                      : Container(
+                                                          width: 100,
+                                                          height: 100,
+                                                          decoration:
+                                                              const BoxDecoration(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    254,
+                                                                    227,
+                                                                    227),
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                          child: ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        15),
+                                                            child:
+                                                                Image.network(
+                                                              "${data["url"]}",
+                                                              width:
+                                                                  MediaQuery.of(
+                                                                          context)
+                                                                      .size
+                                                                      .width,
+                                                              height: 100,
+                                                              fit: BoxFit
+                                                                  .contain,
+                                                            ),
+                                                          ),
+                                                        ),
                                                 ],
                                               ),
                                             ),

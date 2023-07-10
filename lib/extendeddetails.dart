@@ -563,7 +563,7 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                           },
                           child: const Padding(
                             padding:
-                                EdgeInsetsDirectional.fromSTEB(0, 10, 0, 10),
+                                EdgeInsetsDirectional.fromSTEB(0, 15, 0, 15),
                             child: Center(
                               child: Row(
                                 mainAxisSize: MainAxisSize.max,
@@ -591,7 +591,10 @@ class _ExtendedDetailsState extends State<ExtendedDetails> {
                             ),
                           ),
                         ),
-                      )
+                      ),
+                      const SizedBox(
+                        height: 20,
+                      ),
                     ],
                   ),
                 )

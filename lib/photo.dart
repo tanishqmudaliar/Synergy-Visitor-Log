@@ -1,7 +1,9 @@
-import "dart:io";
-import "package:flutter/material.dart";
-import "package:image_cropper/image_cropper.dart";
-import "package:image_picker/image_picker.dart";
+import 'dart:io';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:image/image.dart' as img;
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import "package:shared_preferences/shared_preferences.dart";
 import 'package:synergyvisitorlog/detailconfirm.dart';
 import "package:synergyvisitorlog/extendeddetails.dart";
@@ -9,18 +11,27 @@ import "package:synergyvisitorlog/mobile.dart";
 import 'package:synergyvisitorlog/name.dart';
 
 class Photo extends StatefulWidget {
-  const Photo({Key? key}) : super(key: key);
+  const Photo({
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<Photo> createState() => _PhotoState();
 }
 
 class _PhotoState extends State<Photo> {
-  dynamic imageFile; // image file
+  dynamic imageFile;
   final ImagePicker imagePicker = ImagePicker(); // image picker
+  final FaceDetector faceDetector = FaceDetector(
+    options: FaceDetectorOptions(
+      enableContours: true,
+      enableClassification: true,
+    ),
+  );
   String? myName; // user name
   String? myNumber; // user number
   bool visible = false; // visible
+  bool isLoading = false; // is loading
   late List<int> stepsforenroll = []; // steps to enroll!
 
   // This runs only once when the screen is being displayed.
@@ -30,49 +41,102 @@ class _PhotoState extends State<Photo> {
     loadData();
   }
 
-  // Click image
-  void imageClickCamera() async {
+  // Input image through camera
+  Future<void> imageClickCamera() async {
     XFile? image = await imagePicker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 100,
-        preferredCameraDevice: CameraDevice.front);
+      source: ImageSource.camera,
+      imageQuality: 100,
+      preferredCameraDevice: CameraDevice.rear,
+    );
     if (image != null) {
-      CroppedFile? croppedImage = await ImageCropper().cropImage(
-          sourcePath: image.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
-      if (croppedImage != null) {
+      setState(() {
+        visible = true;
+        isLoading = true;
+      });
+      final inputImage = InputImage.fromFilePath(image.path);
+      final List<Face> faces = await faceDetector.processImage(inputImage);
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      if (faces.isNotEmpty) {
+        int x = faces.first.boundingBox.left.toInt() - 150;
+        int y = faces.first.boundingBox.top.toInt() - 150;
+        int width = 300 + faces.first.boundingBox.width.toInt();
+        int height = 300 + faces.first.boundingBox.height.toInt();
+        img.Image? originalImage =
+            img.decodeImage(File(image.path).readAsBytesSync());
+        img.Image faceCrop = img.copyCrop(originalImage!,
+            x: x, y: y, width: width, height: height);
         setState(() {
-          imageFile = File(croppedImage.path);
-          visible = true;
+          File(image.path).writeAsBytesSync(img.encodeJpg(faceCrop));
+          imageFile = File(image.path);
+          prefs.setString("imagePath", image.path);
+          isLoading = false;
         });
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        setState(() {
-          prefs.setString("imagePath", croppedImage.path);
-        });
+      } else {
+        CroppedFile? croppedImage = await ImageCropper().cropImage(
+            sourcePath: image.path,
+            aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+        if (croppedImage != null) {
+          setState(() {
+            imageFile = File(croppedImage.path);
+            prefs.setString("imagePath", croppedImage.path);
+            isLoading = false;
+          });
+        }
       }
+    } else {
+      setState(() {
+        visible = false;
+      });
+      return;
     }
   }
 
-  // Click image
-  void imageClickGallery() async {
+  // Input image through gallery
+  Future<void> imageClickGallery() async {
     XFile? image = await imagePicker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 100,
     );
     if (image != null) {
-      CroppedFile? croppedImage = await ImageCropper().cropImage(
-          sourcePath: image.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
-      if (croppedImage != null) {
+      setState(() {
+        visible = true;
+        isLoading = true;
+      });
+      final inputImage = InputImage.fromFilePath(image.path);
+      final List<Face> faces = await faceDetector.processImage(inputImage);
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      if (faces.isNotEmpty) {
+        int x = faces.first.boundingBox.left.toInt() - 150;
+        int y = faces.first.boundingBox.top.toInt() - 100;
+        int width = 300 + faces.first.boundingBox.width.toInt();
+        int height = 300 + faces.first.boundingBox.height.toInt();
+        img.Image? originalImage =
+            img.decodeImage(File(image.path).readAsBytesSync());
+        img.Image faceCrop = img.copyCrop(originalImage!,
+            x: x, y: y, width: width, height: height);
         setState(() {
-          imageFile = File(croppedImage.path);
-          visible = true;
+          File(image.path).writeAsBytesSync(img.encodeJpg(faceCrop));
+          imageFile = File(image.path);
+          prefs.setString("imagePath", image.path);
+          isLoading = false;
         });
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        setState(() {
-          prefs.setString("imagePath", croppedImage.path);
-        });
+      } else {
+        CroppedFile? croppedImage = await ImageCropper().cropImage(
+            sourcePath: image.path,
+            aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+        if (croppedImage != null) {
+          setState(() {
+            imageFile = File(croppedImage.path);
+            prefs.setString("imagePath", croppedImage.path);
+            isLoading = false;
+          });
+        }
       }
+    } else {
+      setState(() {
+        visible = false;
+      });
+      return;
     }
   }
 
@@ -106,6 +170,12 @@ class _PhotoState extends State<Photo> {
         });
       }
     }
+  }
+
+  @override
+  void dispose() {
+    faceDetector.close();
+    super.dispose();
   }
 
   // Widget
@@ -257,7 +327,7 @@ class _PhotoState extends State<Photo> {
                                                   step == 3
                                               ? const Color(0xFF008B6A)
                                               : const Color(0xFFFFFBD6),
-                                          size: step == 3 ? 38.0 : 22.0,
+                                          size: step == 3 ? 40.0 : 25.0,
                                         ),
                                       ),
                                   ],
@@ -274,19 +344,37 @@ class _PhotoState extends State<Photo> {
                                     15, 1, 15, 1),
                                 child: Center(
                                   child: imageFile != null
-                                      ? Image.file(
-                                          imageFile,
-                                          width:
-                                              MediaQuery.of(context).size.width,
-                                          height: 86.5 /
-                                              100 *
-                                              MediaQuery.of(context).size.width,
-                                          fit: BoxFit.contain,
-                                        )
-                                      : const CircularProgressIndicator(
-                                          backgroundColor:
-                                              Color.fromARGB(255, 65, 65, 65),
-                                          color: Color(0xFFFFFBD6),
+                                      ? isLoading
+                                          ? const Padding(
+                                              padding: EdgeInsetsDirectional
+                                                  .fromSTEB(0, 15, 0, 15),
+                                              child: CircularProgressIndicator(
+                                                backgroundColor: Color.fromARGB(
+                                                    255, 65, 65, 65),
+                                                color: Color(0xFFFFFBD6),
+                                              ),
+                                            )
+                                          : Image.file(
+                                              imageFile,
+                                              width: MediaQuery.of(context)
+                                                  .size
+                                                  .width,
+                                              height: 86.5 /
+                                                  100 *
+                                                  MediaQuery.of(context)
+                                                      .size
+                                                      .width,
+                                              fit: BoxFit.contain,
+                                            )
+                                      : const Padding(
+                                          padding:
+                                              EdgeInsetsDirectional.fromSTEB(
+                                                  0, 15, 0, 15),
+                                          child: CircularProgressIndicator(
+                                            backgroundColor:
+                                                Color.fromARGB(255, 65, 65, 65),
+                                            color: Color(0xFFFFFBD6),
+                                          ),
                                         ),
                                 ),
                               ),
@@ -304,7 +392,7 @@ class _PhotoState extends State<Photo> {
                               },
                               child: const Padding(
                                 padding: EdgeInsetsDirectional.fromSTEB(
-                                    0, 7.5, 0, 7.5),
+                                    0, 15, 0, 15),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.max,
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -344,7 +432,7 @@ class _PhotoState extends State<Photo> {
                               },
                               child: const Padding(
                                 padding: EdgeInsetsDirectional.fromSTEB(
-                                    0, 7.5, 0, 7.5),
+                                    0, 15, 0, 15),
                                 child: Center(
                                   child: Row(
                                     mainAxisSize: MainAxisSize.max,
@@ -494,7 +582,7 @@ class _PhotoState extends State<Photo> {
                               },
                               child: const Padding(
                                 padding: EdgeInsetsDirectional.fromSTEB(
-                                    0, 10, 0, 10),
+                                    0, 15, 0, 15),
                                 child: Center(
                                   child: Row(
                                     mainAxisSize: MainAxisSize.max,
@@ -524,6 +612,9 @@ class _PhotoState extends State<Photo> {
                               ),
                             ),
                           ),
+                          const SizedBox(
+                            height: 20,
+                          )
                         ],
                       ),
                     ),

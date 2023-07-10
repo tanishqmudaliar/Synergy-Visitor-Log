@@ -39,6 +39,10 @@ dependencies:
   firebase_storage: ^11.2.3
   image_cropper: ^4.0.1
   intl: ^0.18.1
+  image: ^4.0.17
+  google_mlkit_face_detection: ^0.7.0
+  sqflite: ^2.2.8+4
+  workmanager: ^0.5.1
 
 dev_dependencies:
   flutter_test:

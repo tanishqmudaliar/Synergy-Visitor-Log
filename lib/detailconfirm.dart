@@ -1,6 +1,8 @@
 import "dart:io";
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:flutter/material.dart";
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:image/image.dart' as img;
 import "package:image_cropper/image_cropper.dart";
 import "package:image_picker/image_picker.dart";
 import "package:shared_preferences/shared_preferences.dart";
@@ -25,16 +27,23 @@ class _DetailsConfirmState extends State<DetailsConfirm>
   final myNumber = TextEditingController(); // texteditingcontroller
   final myCompanyName = TextEditingController(); // texteditingcontroller
   final myCompanyAddress = TextEditingController(); // texteditingcontroller
-  String? imagePath; // image path
   dynamic imageFile; // image file
   late List<int> stepsforenroll = []; // steps to enroll!
+  bool visible = true; // visible
+  bool isLoading = false; // is loading
   bool validate = false; // variable to store the bool value
   bool extended = false; // variable to store the bool value
   bool speechEnabled = false; // Whether the speech is enabled or not
   SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
-  dynamic imagePicker; // image picker
+  final ImagePicker imagePicker = ImagePicker(); // image picker
   final GlobalKey<ScaffoldMessengerState> scaffoldKey =
       GlobalKey<ScaffoldMessengerState>(); // Show snackbar
+  final FaceDetector faceDetector = FaceDetector(
+    options: FaceDetectorOptions(
+      enableContours: true,
+      enableClassification: true,
+    ),
+  );
   late AnimationController _animationController; // AnimationController
 
   // This runs only once when the screen is being displayed.
@@ -42,7 +51,6 @@ class _DetailsConfirmState extends State<DetailsConfirm>
   void initState() {
     super.initState();
     initSpeech();
-    imagePicker = ImagePicker();
     loadDetails();
     _animationController = AnimationController(
       vsync: this,
@@ -51,47 +59,95 @@ class _DetailsConfirmState extends State<DetailsConfirm>
     )..repeat();
   }
 
-  // Click image
-  void imageClickCamera() async {
+  // Input image through camera
+  Future<void> imageClickCamera() async {
     XFile? image = await imagePicker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 100,
-        preferredCameraDevice: CameraDevice.front);
+      source: ImageSource.camera,
+      imageQuality: 100,
+    );
     if (image != null) {
-      CroppedFile? croppedImage = await ImageCropper().cropImage(
-          sourcePath: image.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
-      if (croppedImage != null) {
+      setState(() {
+        visible = true;
+        isLoading = true;
+      });
+      final inputImage = InputImage.fromFilePath(image.path);
+      final List<Face> faces = await faceDetector.processImage(inputImage);
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      if (faces.isNotEmpty) {
+        int x = faces.first.boundingBox.left.toInt() - 150;
+        int y = faces.first.boundingBox.top.toInt() - 150;
+        int width = 300 + faces.first.boundingBox.width.toInt();
+        int height = 300 + faces.first.boundingBox.height.toInt();
+        img.Image? originalImage =
+            img.decodeImage(File(image.path).readAsBytesSync());
+        img.Image faceCrop = img.copyCrop(originalImage!,
+            x: x, y: y, width: width, height: height);
         setState(() {
-          imageFile = File(croppedImage.path);
+          File(image.path).writeAsBytesSync(img.encodeJpg(faceCrop));
+          imageFile = File(image.path);
+          prefs.setString("imagePath", image.path);
+          isLoading = false;
         });
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        setState(() {
-          prefs.setString("imagePath", croppedImage.path);
-        });
+      } else {
+        CroppedFile? croppedImage = await ImageCropper().cropImage(
+            sourcePath: image.path,
+            aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+        if (croppedImage != null) {
+          setState(() {
+            imageFile = File(croppedImage.path);
+            prefs.setString("imagePath", croppedImage.path);
+            isLoading = false;
+          });
+        }
       }
+    } else {
+      return;
     }
   }
 
-  // Click image
-  void imageClickGallery() async {
+  // Input image through gallery
+  Future<void> imageClickGallery() async {
     XFile? image = await imagePicker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 100,
     );
     if (image != null) {
-      CroppedFile? croppedImage = await ImageCropper().cropImage(
-          sourcePath: image.path,
-          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
-      if (croppedImage != null) {
+      setState(() {
+        visible = true;
+        isLoading = true;
+      });
+      final inputImage = InputImage.fromFilePath(image.path);
+      final List<Face> faces = await faceDetector.processImage(inputImage);
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      if (faces.isNotEmpty) {
+        int x = faces.first.boundingBox.left.toInt() - 150;
+        int y = faces.first.boundingBox.top.toInt() - 100;
+        int width = 300 + faces.first.boundingBox.width.toInt();
+        int height = 300 + faces.first.boundingBox.height.toInt();
+        img.Image? originalImage =
+            img.decodeImage(File(image.path).readAsBytesSync());
+        img.Image faceCrop = img.copyCrop(originalImage!,
+            x: x, y: y, width: width, height: height);
         setState(() {
-          imageFile = File(croppedImage.path);
+          File(image.path).writeAsBytesSync(img.encodeJpg(faceCrop));
+          imageFile = File(image.path);
+          prefs.setString("imagePath", image.path);
+          isLoading = false;
         });
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        setState(() {
-          prefs.setString("imagePath", croppedImage.path);
-        });
+      } else {
+        CroppedFile? croppedImage = await ImageCropper().cropImage(
+            sourcePath: image.path,
+            aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+        if (croppedImage != null) {
+          setState(() {
+            imageFile = File(croppedImage.path);
+            prefs.setString("imagePath", croppedImage.path);
+            isLoading = false;
+          });
+        }
       }
+    } else {
+      return;
     }
   }
 
@@ -122,7 +178,6 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       final path = prefs.getString("imagePath")!;
       setState(() {
         imageFile = File(path);
-        imagePath = path;
       });
     }
     if (prefs.containsKey("steps")) {
@@ -157,7 +212,6 @@ class _DetailsConfirmState extends State<DetailsConfirm>
     setState(() {
       prefs.setString("name", myName.text);
       prefs.setString("number", myNumber.text);
-      prefs.setString("imagePath", imagePath!);
       if (myCompanyName.text.isNotEmpty) {
         prefs.setString("companyName", myCompanyName.text);
       }
@@ -311,6 +365,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
     myNumber.dispose();
     myCompanyName.dispose();
     myCompanyAddress.dispose();
+    faceDetector.close();
     super.dispose();
   }
 
@@ -325,7 +380,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
   }) async {
     final database = FirebaseFirestore.instance.collection("users").doc(number);
     final storage = FirebaseStorage.instance.ref("users/$number.png");
-
+    String url = "Not Set";
     if (mounted) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -337,10 +392,14 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: RotationTransition(
                   turns: _animationController,
-                  child: const Icon(
-                    Icons.sync_rounded,
-                    color: Color(0xFFFFFBD6),
-                    size: 22,
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.diagonal3Values(-1.0, 1.0, 1.0),
+                    child: const Icon(
+                      Icons.sync_rounded,
+                      color: Color(0xFFFFFBD6),
+                      size: 22,
+                    ),
                   ),
                 ),
               ),
@@ -367,6 +426,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
 
     try {
       await storage.putFile(image);
+      url = await storage.getDownloadURL();
     } catch (e) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -409,6 +469,8 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       "phone": number,
       "companyName": companyName,
       "companyAddress": companyAddress,
+      "url": url,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
     };
 
     try {
@@ -628,7 +690,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                         child: const Icon(
                                           Icons.circle,
                                           color: Color(0xFF008B6A),
-                                          size: 22.0,
+                                          size: 25.0,
                                         ),
                                       ),
                                   ],
@@ -1162,7 +1224,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                 },
                                 child: const Padding(
                                   padding: EdgeInsetsDirectional.fromSTEB(
-                                      0, 10, 0, 10),
+                                      0, 15, 0, 15),
                                   child: Center(
                                     child: Row(
                                       mainAxisSize: MainAxisSize.max,
@@ -1236,7 +1298,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                       },
                                       child: const Padding(
                                         padding: EdgeInsetsDirectional.fromSTEB(
-                                            0, 10, 0, 10),
+                                            0, 15, 0, 15),
                                         child: Center(
                                           child: Row(
                                             mainAxisSize: MainAxisSize.max,
@@ -1267,6 +1329,9 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                         ),
                                       ),
                                     ),
+                                  ),
+                                  const SizedBox(
+                                    height: 20,
                                   ),
                                 ],
                               ),

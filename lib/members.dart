@@ -1,5 +1,4 @@
 import "package:cloud_firestore/cloud_firestore.dart";
-import "package:firebase_storage/firebase_storage.dart" as firebase_storage;
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
@@ -13,21 +12,18 @@ class Members extends StatefulWidget {
 }
 
 class _MembersState extends State<Members> {
-  String enteredIDVisitor = ""; // id of the entered state
-  String enteredIDStaff = 'Select Host'; //if of the entered state
   final myNumber = TextEditingController(); // texteditingcontroller
   SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
   bool speechEnabled = false; // Whether the speech is enabled or not
   List<Map<String, dynamic>> allDataVisitor = []; // List of all users data
   List<Map<String, dynamic>> allDataStaff = []; // List of all users data
-  List<String> photoUrlsVisitors = []; // List of all users images
-  List<String> photoUrlsStaff = []; // List of all users images
   bool isLoading = true; // Variable to track loading state
   bool isUser = false; // Variable to whether the users are logged in or not
-  List<String> staffList = []; // List of dropdown options
   final GlobalKey<ScaffoldMessengerState> scaffoldKey =
       GlobalKey<ScaffoldMessengerState>(); // Show snackbar
-  List<String> staffListDropDown = ['Select Host']; // List of dropdown options
+  String selectedOptionHost =
+      'Select Host'; // Tracks the selected dropdown option
+  List<String> staffList = ['Select Host']; // List of dropdown options
 
   // This runs only once when the screen is being displayed.
   @override
@@ -49,34 +45,6 @@ class _MembersState extends State<Members> {
     setState(() {});
   }
 
-  void updateSortingNumber() {
-    setState(() {
-      allDataVisitor.sort((a, b) {
-        if (a["id"] == enteredIDVisitor) {
-          return -1; // a is more relevant
-        } else if (b["id"] == enteredIDVisitor) {
-          return 1; // b is more relevant
-        } else {
-          return 0; // a and b have equal relevance
-        }
-      });
-    });
-  }
-
-  void updateSortingName() {
-    setState(() {
-      allDataStaff.sort((a, b) {
-        if (a["id"] == enteredIDStaff) {
-          return -1; // a is more relevant
-        } else if (b["id"] == enteredIDStaff) {
-          return 1; // b is more relevant
-        } else {
-          return 0; // a and b have equal relevance
-        }
-      });
-    });
-  }
-
   // This is the callback that the SpeechToText plugin calls when the platform returns recognized words.
   void speechResultNumber(SpeechRecognitionResult result) {
     String sanitizedResult =
@@ -86,8 +54,6 @@ class _MembersState extends State<Members> {
       myNumber.text = sanitizedResult;
       myNumber.selection = TextSelection.fromPosition(
           TextPosition(offset: myNumber.text.length));
-      enteredIDVisitor = sanitizedResult;
-      updateSortingNumber(); // Call the updateSortingNumber function here
     });
   }
 
@@ -102,33 +68,22 @@ class _MembersState extends State<Members> {
     // Set loading state to true when fetching users
     setState(() {
       isLoading = true;
+      isUser = false;
     });
 
     QuerySnapshot staff =
-        await FirebaseFirestore.instance.collection("staff").get();
+        await FirebaseFirestore.instance.collection("staff").limit(5).get();
 
-    firebase_storage.ListResult staffStorage = await firebase_storage
-        .FirebaseStorage.instance
-        .ref(
-            "staff") // Replace "users" with the actual folder name in Firebase Storage
-        .listAll();
-
-    List<String> photoUrlsStaff = [];
-    for (var photoRef in staffStorage.items) {
-      String url = await photoRef.getDownloadURL();
-      photoUrlsStaff.add(url);
-    }
-    // Update loading state to false after fetching users
-    isLoading = false;
     if (mounted) {
+      List<String> checkList = []; // List of dropdown options
+      checkList = staff.docs
+          .map((doc) => doc.id)
+          .where((id) => id != "Select Host")
+          .toList();
       setState(() {
-        if (staff.docs.isNotEmpty) {
-          isUser = true;
-          staffListDropDown = staff.docs.map((doc) => doc.id).toList();
+        if (checkList.isEmpty == false) {
+          staffList = staff.docs.map((doc) => doc.id).toList();
           allDataStaff = staff.docs
-              .where((doc) =>
-                  doc.id !=
-                  "Select Host") // Exclude document with ID "Select Host"
               .map((doc) => {
                     "id": doc.id,
                     "number": (doc.data() as Map<String, dynamic>)["number"],
@@ -136,48 +91,31 @@ class _MembersState extends State<Members> {
                         (doc.data() as Map<String, dynamic>)["position"],
                     "experience":
                         (doc.data() as Map<String, dynamic>)["experience"],
-                    "url": photoUrlsStaff.isNotEmpty
-                        ? photoUrlsStaff.removeAt(0)
-                        : null,
+                    "url": (doc.data() as Map<String, dynamic>)["url"],
                   })
               .toList();
-
-          allDataStaff.sort((a, b) {
-            if (a["id"] == enteredIDStaff) {
-              return -1; // a is more relevant
-            } else if (b["id"] == enteredIDStaff) {
-              return 1; // b is more relevant
-            } else {
-              return 0; // a and b have equal relevance
-            }
-          });
+          allDataStaff = allDataStaff
+              .where((data) => data["id"] != "Select Host")
+              .toList();
+        } else {
+          // Set loading state to false when fetching users
+          isLoading = false;
+          isUser = false;
         }
       });
     }
 
-    QuerySnapshot visitors =
-        await FirebaseFirestore.instance.collection("users").get();
-
-    firebase_storage.ListResult visitorsStorage = await firebase_storage
-        .FirebaseStorage.instance
-        .ref(
-            "users") // Replace "users" with the actual folder name in Firebase Storage
-        .listAll();
-
-    List<String> photoUrlsVisitors = [];
-    for (var photoRef in visitorsStorage.items) {
-      String url = await photoRef.getDownloadURL();
-      photoUrlsVisitors.add(url);
-    }
-    // Update loading state to false after fetching users
-    isLoading = false;
-
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection("users")
+        .orderBy("createdAt",
+            descending:
+                true) // Assuming there's a "createdAt" field in the documents
+        .limit(5) // Fetch only the latest 5 documents
+        .get();
     if (mounted) {
       setState(() {
-        if (visitors.docs.isEmpty == false) {
-          isUser = true;
-          // Update allData and photoUrlsVisitors with fetched data
-          allDataVisitor = visitors.docs
+        if (snapshot.docs.isEmpty == false) {
+          allDataVisitor = snapshot.docs
               .map((doc) => {
                     "id": doc.id,
                     "name": (doc.data() as Map<String, dynamic>)["name"],
@@ -186,22 +124,82 @@ class _MembersState extends State<Members> {
                         (doc.data() as Map<String, dynamic>)["companyName"],
                     "cdress":
                         (doc.data() as Map<String, dynamic>)["companyAddress"],
-                    "url": photoUrlsVisitors.isNotEmpty
-                        ? photoUrlsVisitors.removeAt(0)
-                        : null,
+                    "url": (doc.data() as Map<String, dynamic>)["url"],
                   })
               .toList();
-          // Sort the allData list based on the relevance of enteredIDVisitor
-          allDataVisitor.sort((a, b) {
-            if (a["id"] == enteredIDVisitor) {
-              return -1; // a is more relevant
-            } else if (b["id"] == enteredIDVisitor) {
-              return 1; // b is more relevant
-            } else {
-              return 0; // a and b have equal relevance
-            }
-          });
+          isLoading = false;
+          isUser = true;
+          // Update allData and photoUrls with fetched data
+        } else {
+          // Set loading state to false when fetching users
+          isLoading = false;
+          isUser = false;
         }
+      });
+    }
+  }
+
+  // Fetch a single user
+  void fetchUserVisitor({required String number}) async {
+    // Set loading state to true when fetching users
+    setState(() {
+      isLoading = true;
+      isUser = false;
+    });
+    final docRef = FirebaseFirestore.instance.collection("users").doc(number);
+    final snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      setState(() {
+        isLoading = false;
+        isUser = false;
+      });
+    } else {
+      await docRef.get().then((DocumentSnapshot doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        setState(() {
+          allDataVisitor.add({
+            "id": doc.id,
+            "name": data["name"],
+            "number": data["phone"],
+            "cname": data["companyName"],
+            "cdress": data["companyAddress"],
+            "url": data["photo"],
+          });
+          isLoading = false;
+          isUser = true;
+        });
+      });
+    }
+  }
+
+  // Fetch a single user
+  void fetchUserStaff({required String name}) async {
+    // Set loading state to true when fetching users
+    setState(() {
+      isLoading = true;
+      isUser = false;
+    });
+    final docRef = FirebaseFirestore.instance.collection("staff").doc(name);
+    final snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      setState(() {
+        isLoading = false;
+        isUser = false;
+      });
+    } else {
+      await docRef.get().then((DocumentSnapshot doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        setState(() {
+          allDataStaff.add({
+            "id": doc.id,
+            "number": data["number"],
+            "position": data["position"],
+            "experience": data["experience"],
+            "url": data["url"],
+          });
+          isLoading = false;
+          isUser = true;
+        });
       });
     }
   }
@@ -342,11 +340,11 @@ class _MembersState extends State<Members> {
                                 padding: const EdgeInsetsDirectional.fromSTEB(
                                     0, 20, 0, 0),
                                 child: TextField(
-                                  onChanged: (value) {
-                                    setState(() {
-                                      enteredIDVisitor = value;
-                                    });
-                                    fetchUsers();
+                                  onSubmitted: (value) {
+                                    allDataVisitor.clear();
+                                    if (value.isNotEmpty) {
+                                      fetchUserVisitor(number: value);
+                                    }
                                   },
                                   maxLength: 10,
                                   maxLengthEnforcement:
@@ -710,7 +708,7 @@ class _MembersState extends State<Members> {
                               ),
                               Padding(
                                 padding: const EdgeInsetsDirectional.fromSTEB(
-                                    0, 15, 0, 15),
+                                    0, 20, 0, 0),
                                 child: Container(
                                   width: MediaQuery.of(context).size.width,
                                   height: 60,
@@ -726,14 +724,19 @@ class _MembersState extends State<Members> {
                                       alignedDropdown: true,
                                       child: DropdownButton(
                                         dropdownColor: const Color(0xFFFFFBD6),
-                                        value: enteredIDStaff,
+                                        value: selectedOptionHost,
                                         onChanged: (newValue) {
                                           setState(() {
-                                            enteredIDStaff = newValue!;
+                                            selectedOptionHost = newValue!;
                                           });
-                                          updateSortingName();
+                                          if (selectedOptionHost !=
+                                              "Select Host") {
+                                            allDataStaff.clear();
+                                            fetchUserStaff(
+                                                name: selectedOptionHost);
+                                          }
                                         },
-                                        items: staffListDropDown
+                                        items: staffList
                                             .map<DropdownMenuItem<String>>(
                                                 (String value) {
                                           return DropdownMenuItem<String>(
