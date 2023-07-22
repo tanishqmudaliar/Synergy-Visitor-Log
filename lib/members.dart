@@ -680,7 +680,7 @@ class _MembersState extends State<Members> {
                                             ),
                                             const Center(
                                               child: Text(
-                                                "No user found!\n\nPlease enroll first to log in.",
+                                                "No user found!\n\nPlease enroll first to view",
                                                 textAlign: TextAlign.center,
                                                 style: TextStyle(
                                                   fontFamily: "ComicNeue",
@@ -885,12 +885,10 @@ class _MembersState extends State<Members> {
                                           setState(() {
                                             selectedOptionHost = newValue!;
                                           });
-                                          if (selectedOptionHost !=
-                                              "Select Host") {
-                                            allDataStaff.clear();
-                                            fetchUserStaff(
-                                                id: selectedOptionHost);
-                                          }
+
+                                          allDataStaff.clear();
+                                          fetchUserStaff(
+                                              id: selectedOptionHost);
                                         },
                                         items: staffList
                                             .map<DropdownMenuItem<String>>(
@@ -1135,7 +1133,7 @@ class _MembersState extends State<Members> {
                                             ),
                                             const Center(
                                               child: Text(
-                                                "No user found!\n\nPlease enroll first to log in.",
+                                                "No staff found!\n\nPlease enroll first to view.",
                                                 textAlign: TextAlign.center,
                                                 style: TextStyle(
                                                   fontFamily: "ComicNeue",

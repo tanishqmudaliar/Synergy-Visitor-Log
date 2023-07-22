@@ -142,6 +142,32 @@ void callbackDispatcher() async {
 
       final isStaffExists = await database.rawQuery(
           "SELECT * FROM sqlite_master WHERE type='table' AND name='staff'");
+      if (isStaffExists.isNotEmpty) {
+        final List<Map<String, dynamic>> staff = await database.query("staff");
+        for (var staff in staff) {
+          final String id = staff["number"];
+          final String name = staff["id"];
+          final String imagePath = staff["url"];
+
+          // Upload image to Firebase Storage
+          final dynamic imageFile = File(imagePath);
+          final storage = FirebaseStorage.instance.ref("staff/$id.png");
+          await storage.putFile(imageFile);
+          String url = await storage.getDownloadURL();
+
+          final staffData = {
+            "number": staff["number"],
+            "experience": staff["experience"],
+            "position": staff["position"],
+            "url": url,
+          };
+
+          await FirebaseFirestore.instance
+              .collection("staff")
+              .doc(name)
+              .set(staffData);
+        }
+      }
 
       final isLocationExists = await database.rawQuery(
           "SELECT * FROM sqlite_master WHERE type='table' AND name='location'");
