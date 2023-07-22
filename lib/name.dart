@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:synergyvisitorlog/extendeddetails.dart";
+import "package:synergyvisitorlog/main.dart";
 import "package:synergyvisitorlog/photo.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
@@ -525,7 +526,12 @@ class _NameState extends State<Name> {
         floatingActionButton: FloatingActionButton(
           backgroundColor: const Color(0xFF008B6A),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const HomePage(),
+              ),
+            );
           },
           child: const Icon(Icons.arrow_back_ios_new_rounded),
         ),

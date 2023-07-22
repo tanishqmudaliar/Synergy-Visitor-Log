@@ -46,7 +46,6 @@ class _PhotoState extends State<Photo> {
     XFile? image = await imagePicker.pickImage(
       source: ImageSource.camera,
       imageQuality: 100,
-      preferredCameraDevice: CameraDevice.rear,
     );
     if (image != null) {
       setState(() {
@@ -57,14 +56,18 @@ class _PhotoState extends State<Photo> {
       final List<Face> faces = await faceDetector.processImage(inputImage);
       SharedPreferences prefs = await SharedPreferences.getInstance();
       if (faces.isNotEmpty) {
-        int x = faces.first.boundingBox.left.toInt() - 150;
-        int y = faces.first.boundingBox.top.toInt() - 150;
-        int width = 300 + faces.first.boundingBox.width.toInt();
-        int height = 300 + faces.first.boundingBox.height.toInt();
+        // Accessing the first face directly from the "faces" list
+        Face firstFace = faces.first;
+
+        int x = firstFace.boundingBox.left.toInt() - 150;
+        int y = firstFace.boundingBox.top.toInt() - 100;
+        int width = 300 + firstFace.boundingBox.width.toInt();
+        int height = 300 + firstFace.boundingBox.height.toInt();
         img.Image? originalImage =
             img.decodeImage(File(image.path).readAsBytesSync());
         img.Image faceCrop = img.copyCrop(originalImage!,
             x: x, y: y, width: width, height: height);
+
         setState(() {
           File(image.path).writeAsBytesSync(img.encodeJpg(faceCrop));
           imageFile = File(image.path);
@@ -73,8 +76,9 @@ class _PhotoState extends State<Photo> {
         });
       } else {
         CroppedFile? croppedImage = await ImageCropper().cropImage(
-            sourcePath: image.path,
-            aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
+        );
         if (croppedImage != null) {
           setState(() {
             imageFile = File(croppedImage.path);
@@ -106,14 +110,18 @@ class _PhotoState extends State<Photo> {
       final List<Face> faces = await faceDetector.processImage(inputImage);
       SharedPreferences prefs = await SharedPreferences.getInstance();
       if (faces.isNotEmpty) {
-        int x = faces.first.boundingBox.left.toInt() - 150;
-        int y = faces.first.boundingBox.top.toInt() - 100;
-        int width = 300 + faces.first.boundingBox.width.toInt();
-        int height = 300 + faces.first.boundingBox.height.toInt();
+        // Accessing the first face directly from the "faces" list
+        Face firstFace = faces.first;
+
+        int x = firstFace.boundingBox.left.toInt() - 150;
+        int y = firstFace.boundingBox.top.toInt() - 100;
+        int width = 300 + firstFace.boundingBox.width.toInt();
+        int height = 300 + firstFace.boundingBox.height.toInt();
         img.Image? originalImage =
             img.decodeImage(File(image.path).readAsBytesSync());
         img.Image faceCrop = img.copyCrop(originalImage!,
             x: x, y: y, width: width, height: height);
+
         setState(() {
           File(image.path).writeAsBytesSync(img.encodeJpg(faceCrop));
           imageFile = File(image.path);
@@ -122,8 +130,9 @@ class _PhotoState extends State<Photo> {
         });
       } else {
         CroppedFile? croppedImage = await ImageCropper().cropImage(
-            sourcePath: image.path,
-            aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0));
+          sourcePath: image.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
+        );
         if (croppedImage != null) {
           setState(() {
             imageFile = File(croppedImage.path);
@@ -209,27 +218,30 @@ class _PhotoState extends State<Photo> {
                   mainAxisSize: MainAxisSize.max,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    Padding(
-                      padding:
-                          const EdgeInsetsDirectional.fromSTEB(0, 50, 0, 0),
-                      child: Container(
-                        width: 150,
-                        height: 150,
-                        decoration: const BoxDecoration(
-                          color: Color.fromARGB(255, 254, 227, 227),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Image.asset(
-                          "assets/images/logo.png",
-                          width: MediaQuery.of(context).size.width,
-                          height: 100,
-                          fit: BoxFit.contain,
+                    Visibility(
+                      visible: !visible,
+                      child: Padding(
+                        padding:
+                            const EdgeInsetsDirectional.fromSTEB(0, 50, 0, 0),
+                        child: Container(
+                          width: 150,
+                          height: 150,
+                          decoration: const BoxDecoration(
+                            color: Color.fromARGB(255, 254, 227, 227),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Image.asset(
+                            "assets/images/logo.png",
+                            width: MediaQuery.of(context).size.width,
+                            height: 100,
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
                     ),
                     Padding(
                       padding: imageFile != null
-                          ? const EdgeInsetsDirectional.fromSTEB(0, 0, 0, 0)
+                          ? const EdgeInsetsDirectional.fromSTEB(0, 25, 0, 0)
                           : const EdgeInsetsDirectional.fromSTEB(0, 20, 0, 0),
                       child: const Text(
                         "Enroll!",
@@ -629,7 +641,12 @@ class _PhotoState extends State<Photo> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF008B6A),
         onPressed: () {
-          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const Mobile(),
+            ),
+          );
         },
         child: const Icon(Icons.arrow_back_ios_new_rounded),
       ),

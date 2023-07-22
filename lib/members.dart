@@ -1,8 +1,11 @@
-import "package:cloud_firestore/cloud_firestore.dart";
+import "dart:io";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
+import "package:path/path.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
+import "package:sqflite/sqflite.dart";
+import "package:synergyvisitorlog/addstaff.dart";
 
 class Members extends StatefulWidget {
   const Members({super.key});
@@ -19,6 +22,7 @@ class _MembersState extends State<Members> {
   List<Map<String, dynamic>> allDataStaff = []; // List of all users data
   bool isLoading = true; // Variable to track loading state
   bool isUser = false; // Variable to whether the users are logged in or not
+  bool isStaff = false; // Variable to whether the users are logged in or not
   final GlobalKey<ScaffoldMessengerState> scaffoldKey =
       GlobalKey<ScaffoldMessengerState>(); // Show snackbar
   String selectedOptionHost =
@@ -69,137 +73,178 @@ class _MembersState extends State<Members> {
     setState(() {
       isLoading = true;
       isUser = false;
+      isStaff = false;
     });
+    final databasePath = await getDatabasesPath();
 
-    QuerySnapshot staff =
-        await FirebaseFirestore.instance.collection("staff").limit(5).get();
-
+    final database = await openDatabase(
+      join(databasePath, "database.db"),
+    );
+    final staffResult = await database.query('staff');
+    setState(() {
+      staffList = staffResult.map((staff) => staff['id'] as String).toList();
+    });
+    final List<Map<String, dynamic>> queryResultStaff = await database.query(
+      'staff',
+    );
     if (mounted) {
-      List<String> checkList = []; // List of dropdown options
-      checkList = staff.docs
-          .map((doc) => doc.id)
-          .where((id) => id != "Select Host")
-          .toList();
       setState(() {
-        if (checkList.isEmpty == false) {
-          staffList = staff.docs.map((doc) => doc.id).toList();
-          allDataStaff = staff.docs
-              .map((doc) => {
-                    "id": doc.id,
-                    "number": (doc.data() as Map<String, dynamic>)["number"],
-                    "position":
-                        (doc.data() as Map<String, dynamic>)["position"],
-                    "experience":
-                        (doc.data() as Map<String, dynamic>)["experience"],
-                    "url": (doc.data() as Map<String, dynamic>)["url"],
-                  })
-              .toList();
-          allDataStaff = allDataStaff
-              .where((data) => data["id"] != "Select Host")
-              .toList();
-        } else {
-          // Set loading state to false when fetching users
+        if (staffList.length == 1) {
+          // Only "Select Host" is available in the list
           isLoading = false;
-          isUser = false;
+          isStaff = false;
+        } else {
+          isLoading = false;
+          isStaff = true;
+          // Update allData with fetched data
+          allDataStaff = queryResultStaff
+              .where((staff) => staff["id"] != "Select Host")
+              .map((staff) {
+            return {
+              "id": staff['id'],
+              "number": staff['number'],
+              "position": staff['position'],
+              "experience": staff['experience'],
+              "url": staff['url'],
+            };
+          }).toList();
         }
       });
     }
 
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection("users")
-        .orderBy("createdAt",
-            descending:
-                true) // Assuming there's a "createdAt" field in the documents
-        .limit(5) // Fetch only the latest 5 documents
-        .get();
-    if (mounted) {
-      setState(() {
-        if (snapshot.docs.isEmpty == false) {
-          allDataVisitor = snapshot.docs
-              .map((doc) => {
-                    "id": doc.id,
-                    "name": (doc.data() as Map<String, dynamic>)["name"],
-                    "number": (doc.data() as Map<String, dynamic>)["phone"],
-                    "cname":
-                        (doc.data() as Map<String, dynamic>)["companyName"],
-                    "cdress":
-                        (doc.data() as Map<String, dynamic>)["companyAddress"],
-                    "url": (doc.data() as Map<String, dynamic>)["url"],
-                  })
-              .toList();
+    final isUserExists = await database.rawQuery(
+        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
+    if (isUserExists.isNotEmpty) {
+      final List<Map<String, dynamic>> queryResult = await database.query(
+        'users',
+        orderBy: "createdAt DESC",
+        limit: 15,
+      );
+      if (mounted) {
+        setState(() {
           isLoading = false;
           isUser = true;
-          // Update allData and photoUrls with fetched data
-        } else {
-          // Set loading state to false when fetching users
-          isLoading = false;
-          isUser = false;
-        }
+          // Update allData with fetched data
+          allDataVisitor = queryResult.map((user) {
+            return {
+              "id": user['id'],
+              "name": user['name'],
+              "number": user['phone'],
+              "cname": user['companyName'],
+              "cdress": user['companyAddress'],
+              "url": user['url'],
+            };
+          }).toList();
+        });
+      }
+    } else {
+      setState(() {
+        // Set loading state to false when fetching users
+        isLoading = false;
+        isUser = false;
       });
     }
   }
 
   // Fetch a single user
   void fetchUserVisitor({required String number}) async {
-    // Set loading state to true when fetching users
+    // Set loading state to true when fetching user
     setState(() {
       isLoading = true;
       isUser = false;
     });
-    final docRef = FirebaseFirestore.instance.collection("users").doc(number);
-    final snapshot = await docRef.get();
-    if (!snapshot.exists) {
+
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, 'database.db'),
+    );
+
+    final isUserExists = await database.rawQuery(
+        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
+    if (isUserExists.isNotEmpty) {
+      final List<Map<String, dynamic>> queryResult = await database.query(
+        'users',
+        where: 'phone = ?',
+        whereArgs: [number],
+        limit: 1,
+      );
+      if (mounted) {
+        setState(() {
+          if (queryResult.isNotEmpty) {
+            isLoading = false;
+            isUser = true;
+            final user = queryResult[0];
+            allDataVisitor.add({
+              'id': user['id'],
+              'name': user['name'],
+              'number': user['phone'],
+              'cname': user['companyName'],
+              'cdress': user['companyAddress'],
+              'url': user['url'],
+            });
+          } else {
+            // Set loading state to false when user is not found
+            isLoading = false;
+            isUser = false;
+          }
+        });
+      }
+    } else {
       setState(() {
+        // Set loading state to false when fetching users
         isLoading = false;
         isUser = false;
-      });
-    } else {
-      await docRef.get().then((DocumentSnapshot doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        setState(() {
-          allDataVisitor.add({
-            "id": doc.id,
-            "name": data["name"],
-            "number": data["phone"],
-            "cname": data["companyName"],
-            "cdress": data["companyAddress"],
-            "url": data["photo"],
-          });
-          isLoading = false;
-          isUser = true;
-        });
       });
     }
   }
 
-  // Fetch a single user
-  void fetchUserStaff({required String name}) async {
-    // Set loading state to true when fetching users
-    setState(() {
-      isLoading = true;
-      isUser = false;
-    });
-    final docRef = FirebaseFirestore.instance.collection("staff").doc(name);
-    final snapshot = await docRef.get();
-    if (!snapshot.exists) {
+  void fetchUserStaff({required String id}) async {
+    // Check if the id is "Select Host"
+    if (id == "Select Host") {
+      // Set loading state to false and isStaff to false
       setState(() {
         isLoading = false;
-        isUser = false;
+        isStaff = false;
       });
-    } else {
-      await docRef.get().then((DocumentSnapshot doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        setState(() {
-          allDataStaff.add({
-            "id": doc.id,
-            "number": data["number"],
-            "position": data["position"],
-            "experience": data["experience"],
-            "url": data["url"],
-          });
+      return; // Return early as there's no need to proceed further
+    }
+
+    // Set loading state to true when fetching user
+    setState(() {
+      isLoading = true;
+      isStaff = false;
+    });
+
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, 'database.db'),
+    );
+
+    final List<Map<String, dynamic>> queryResult = await database.query(
+      'staff',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (mounted) {
+      setState(() {
+        if (queryResult.isNotEmpty) {
           isLoading = false;
-          isUser = true;
-        });
+          isStaff = true;
+          final user = queryResult[0];
+          allDataStaff.add({
+            "id": user['id'],
+            "number": user['number'],
+            "position": user['position'],
+            "experience": user['experience'],
+            "url": user['url'],
+          });
+        } else {
+          // Set loading state to false when user is not found
+          isLoading = false;
+          isStaff = false;
+        }
       });
     }
   }
@@ -574,39 +619,55 @@ class _MembersState extends State<Members> {
                                                           ],
                                                         ),
                                                       ),
-                                                      Container(
-                                                        width: 100,
-                                                        height: 100,
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: const Color
-                                                                  .fromARGB(255,
-                                                              254, 227, 227),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(15),
-                                                        ),
-                                                        child:
-                                                            data["url"] != null
-                                                                ? ClipRRect(
-                                                                    borderRadius:
-                                                                        BorderRadius.circular(
+                                                      data["url"] == null
+                                                          ? Container(
+                                                              width: 100,
+                                                              height: 100,
+                                                              decoration:
+                                                                  const BoxDecoration(
+                                                                color: Color
+                                                                    .fromARGB(
+                                                                        255,
+                                                                        254,
+                                                                        227,
+                                                                        227),
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                              ),
+                                                            )
+                                                          : Container(
+                                                              width: 100,
+                                                              height: 100,
+                                                              decoration:
+                                                                  const BoxDecoration(
+                                                                color: Color
+                                                                    .fromARGB(
+                                                                        255,
+                                                                        254,
+                                                                        227,
+                                                                        227),
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                              ),
+                                                              child: ClipRRect(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
                                                                             15),
-                                                                    child: Image
-                                                                        .network(
-                                                                      "${data["url"]}",
-                                                                      width: MediaQuery.of(
-                                                                              context)
-                                                                          .size
-                                                                          .width,
-                                                                      height:
-                                                                          100,
-                                                                      fit: BoxFit
-                                                                          .contain,
-                                                                    ),
-                                                                  )
-                                                                : null,
-                                                      ),
+                                                                child:
+                                                                    Image.file(
+                                                                  File(
+                                                                      "${data["url"]}"),
+                                                                  width: MediaQuery.of(
+                                                                          context)
+                                                                      .size
+                                                                      .width,
+                                                                  height: 100,
+                                                                  fit: BoxFit
+                                                                      .contain,
+                                                                ),
+                                                              ),
+                                                            ),
                                                     ],
                                                   ),
                                                 ),
@@ -708,7 +769,102 @@ class _MembersState extends State<Members> {
                               ),
                               Padding(
                                 padding: const EdgeInsetsDirectional.fromSTEB(
-                                    0, 20, 0, 0),
+                                    0, 5, 0, 0),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFFFBD6),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const AddStaff(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                        0, 15, 0, 15),
+                                    child: Center(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.max,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: <Widget>[
+                                          Icon(
+                                            Icons.add_rounded,
+                                            color:
+                                                Color.fromARGB(255, 70, 70, 70),
+                                            size: 25,
+                                          ),
+                                          Padding(
+                                            padding:
+                                                EdgeInsetsDirectional.fromSTEB(
+                                                    3, 2, 0, 0),
+                                            child: Text(
+                                              "Staff",
+                                              style: TextStyle(
+                                                fontFamily: "ComicNeue",
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 17,
+                                                color: Color.fromARGB(
+                                                    255, 65, 65, 65),
+                                              ),
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
+                                    0, 10, 0, 0),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFFFBD6),
+                                  ),
+                                  onPressed: () {},
+                                  child: const Padding(
+                                    padding: EdgeInsetsDirectional.fromSTEB(
+                                        0, 15, 0, 15),
+                                    child: Center(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.max,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: <Widget>[
+                                          Icon(
+                                            Icons.add_rounded,
+                                            color:
+                                                Color.fromARGB(255, 70, 70, 70),
+                                            size: 25,
+                                          ),
+                                          Padding(
+                                            padding:
+                                                EdgeInsetsDirectional.fromSTEB(
+                                                    3, 2, 0, 0),
+                                            child: Text(
+                                              "Location",
+                                              style: TextStyle(
+                                                fontFamily: "ComicNeue",
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 17,
+                                                color: Color.fromARGB(
+                                                    255, 65, 65, 65),
+                                              ),
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
+                                    0, 10, 0, 0),
                                 child: Container(
                                   width: MediaQuery.of(context).size.width,
                                   height: 60,
@@ -733,7 +889,7 @@ class _MembersState extends State<Members> {
                                               "Select Host") {
                                             allDataStaff.clear();
                                             fetchUserStaff(
-                                                name: selectedOptionHost);
+                                                id: selectedOptionHost);
                                           }
                                         },
                                         items: staffList
@@ -782,7 +938,7 @@ class _MembersState extends State<Members> {
                                           ),
                                         ),
                                       ]
-                                    : isUser
+                                    : isStaff
                                         ? allDataStaff
                                             .map(
                                               (data) => Card(
@@ -918,39 +1074,55 @@ class _MembersState extends State<Members> {
                                                           ],
                                                         ),
                                                       ),
-                                                      Container(
-                                                        width: 100,
-                                                        height: 100,
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: const Color
-                                                                  .fromARGB(255,
-                                                              254, 227, 227),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(15),
-                                                        ),
-                                                        child:
-                                                            data["url"] != null
-                                                                ? ClipRRect(
-                                                                    borderRadius:
-                                                                        BorderRadius.circular(
+                                                      data["url"] == null
+                                                          ? Container(
+                                                              width: 100,
+                                                              height: 100,
+                                                              decoration:
+                                                                  const BoxDecoration(
+                                                                color: Color
+                                                                    .fromARGB(
+                                                                        255,
+                                                                        254,
+                                                                        227,
+                                                                        227),
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                              ),
+                                                            )
+                                                          : Container(
+                                                              width: 100,
+                                                              height: 100,
+                                                              decoration:
+                                                                  const BoxDecoration(
+                                                                color: Color
+                                                                    .fromARGB(
+                                                                        255,
+                                                                        254,
+                                                                        227,
+                                                                        227),
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                              ),
+                                                              child: ClipRRect(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
                                                                             15),
-                                                                    child: Image
-                                                                        .network(
-                                                                      "${data["url"]}",
-                                                                      width: MediaQuery.of(
-                                                                              context)
-                                                                          .size
-                                                                          .width,
-                                                                      height:
-                                                                          100,
-                                                                      fit: BoxFit
-                                                                          .contain,
-                                                                    ),
-                                                                  )
-                                                                : null,
-                                                      ),
+                                                                child:
+                                                                    Image.file(
+                                                                  File(
+                                                                      "${data["url"]}"),
+                                                                  width: MediaQuery.of(
+                                                                          context)
+                                                                      .size
+                                                                      .width,
+                                                                  height: 100,
+                                                                  fit: BoxFit
+                                                                      .contain,
+                                                                ),
+                                                              ),
+                                                            ),
                                                     ],
                                                   ),
                                                 ),

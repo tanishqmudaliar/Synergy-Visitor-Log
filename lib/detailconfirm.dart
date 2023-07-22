@@ -1,19 +1,21 @@
 import "dart:io";
-import "package:cloud_firestore/cloud_firestore.dart";
 import "package:flutter/material.dart";
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'package:image/image.dart' as img;
+import "package:flutter_local_notifications/flutter_local_notifications.dart";
+import "package:google_mlkit_face_detection/google_mlkit_face_detection.dart";
+import "package:image/image.dart" as img;
 import "package:image_cropper/image_cropper.dart";
 import "package:image_picker/image_picker.dart";
+import "package:path/path.dart";
 import "package:shared_preferences/shared_preferences.dart";
+import "package:sqflite/sqflite.dart";
 import "package:synergyvisitorlog/extendeddetails.dart";
+import "package:synergyvisitorlog/inconfirm.dart";
 import "package:synergyvisitorlog/main.dart";
 import "package:synergyvisitorlog/mobile.dart";
-import 'package:synergyvisitorlog/name.dart';
+import "package:synergyvisitorlog/name.dart";
 import "package:synergyvisitorlog/photo.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
-import 'package:firebase_storage/firebase_storage.dart';
 
 class DetailsConfirm extends StatefulWidget {
   const DetailsConfirm({super.key});
@@ -28,16 +30,23 @@ class _DetailsConfirmState extends State<DetailsConfirm>
   final myCompanyName = TextEditingController(); // texteditingcontroller
   final myCompanyAddress = TextEditingController(); // texteditingcontroller
   dynamic imageFile; // image file
+  late String imagePath;
   late List<int> stepsforenroll = []; // steps to enroll!
+  bool exists = false;
   bool visible = true; // visible
   bool isLoading = false; // is loading
-  bool validate = false; // variable to store the bool value
+  bool validateName = false; // variable to store the bool value
+  bool validateNumber = false; // variable to store the bool value
+  bool validateCompanyName = false; // variable to store the bool value
+  bool validateAddress = false; // variable to store the bool value
   bool extended = false; // variable to store the bool value
   bool speechEnabled = false; // Whether the speech is enabled or not
   SpeechToText speechToText = SpeechToText(); // Initialize the speech-to-text
   final ImagePicker imagePicker = ImagePicker(); // image picker
   final GlobalKey<ScaffoldMessengerState> scaffoldKey =
       GlobalKey<ScaffoldMessengerState>(); // Show snackbar
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   final FaceDetector faceDetector = FaceDetector(
     options: FaceDetectorOptions(
       enableContours: true,
@@ -50,6 +59,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
   @override
   void initState() {
     super.initState();
+    initializeNotifications();
     initSpeech();
     loadDetails();
     _animationController = AnimationController(
@@ -57,6 +67,14 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       duration: const Duration(
           seconds: 1), // Adjust the duration as per your preference
     )..repeat();
+  }
+
+  Future<void> initializeNotifications() async {
+    var initializationSettingsAndroid =
+        const AndroidInitializationSettings("mipmap/ic_launcher");
+    var initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
   // Input image through camera
@@ -178,6 +196,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       final path = prefs.getString("imagePath")!;
       setState(() {
         imageFile = File(path);
+        imagePath = path;
       });
     }
     if (prefs.containsKey("steps")) {
@@ -278,7 +297,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       return input;
     }
 
-    List<String> words = input.toLowerCase().split(' ');
+    List<String> words = input.toLowerCase().split(" ");
 
     for (int i = 0; i < words.length; i++) {
       if (words[i].isNotEmpty) {
@@ -286,14 +305,14 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       }
     }
 
-    return words.join(' ');
+    return words.join(" ");
   }
 
   // This is the callback that the SpeechToText plugin calls when the platform returns recognized words.
   void onSpeechResultNumber(SpeechRecognitionResult result) {
     String sanitizedResult =
-        result.recognizedWords.replaceAll(RegExp(r'[^0-9 +-]'), '');
-    sanitizedResult = sanitizedResult.replaceAll(' ', '-');
+        result.recognizedWords.replaceAll(RegExp(r"[^0-9 +-]"), "");
+    sanitizedResult = sanitizedResult.replaceAll(" ", "-");
     setState(() {
       myNumber.text = sanitizedResult;
       myNumber.selection = TextSelection.fromPosition(
@@ -318,7 +337,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       return input;
     }
 
-    List<String> words = input.toLowerCase().split(' ');
+    List<String> words = input.toLowerCase().split(" ");
 
     for (int i = 0; i < words.length; i++) {
       if (words[i].isNotEmpty) {
@@ -326,7 +345,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       }
     }
 
-    return words.join(' ');
+    return words.join(" ");
   }
 
   // This is the callback that the SpeechToText plugin calls when the platform returns recognized words.
@@ -346,7 +365,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       return input;
     }
 
-    List<String> words = input.toLowerCase().split(' ');
+    List<String> words = input.toLowerCase().split(" ");
 
     for (int i = 0; i < words.length; i++) {
       if (words[i].isNotEmpty) {
@@ -354,19 +373,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       }
     }
 
-    return words.join(' ');
-  }
-
-  // Clean up the controller when the widget is disposed.
-  @override
-  void dispose() {
-    _animationController.dispose();
-    myName.dispose();
-    myNumber.dispose();
-    myCompanyName.dispose();
-    myCompanyAddress.dispose();
-    faceDetector.close();
-    super.dispose();
+    return words.join(" ");
   }
 
   // Create a new user in the database.
@@ -375,12 +382,9 @@ class _DetailsConfirmState extends State<DetailsConfirm>
     required String number,
     required String companyName,
     required String companyAddress,
-    required dynamic image,
+    required String imageUrl,
     required ScaffoldMessengerState scaffoldMessenger,
   }) async {
-    final database = FirebaseFirestore.instance.collection("users").doc(number);
-    final storage = FirebaseStorage.instance.ref("users/$number.png");
-    String url = "Not Set";
     if (mounted) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
@@ -406,7 +410,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
-                  width: 60 / 100 * MediaQuery.of(context).size.width,
+                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
                   child: Text(
                     "Creating a new user!\n$name",
                     style: const TextStyle(
@@ -423,58 +427,18 @@ class _DetailsConfirmState extends State<DetailsConfirm>
         ),
       );
     }
-
-    try {
-      await storage.putFile(image);
-      url = await storage.getDownloadURL();
-    } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            mainAxisSize: MainAxisSize.max,
-            children: <Widget>[
-              const Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                child: Icon(
-                  Icons.error_outline_outlined,
-                  color: Color(0xFFFFFBD6),
-                  size: 22,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                child: SizedBox(
-                  width: 60 / 100 * MediaQuery.of(context).size.width,
-                  child: Text(
-                    'Error uploading the image file\n$e!',
-                    style: const TextStyle(
-                      fontFamily: "ComicNeue",
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFFFFFBD6),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-      return;
-    }
-
     final user = {
+      "id": number,
       "name": name,
       "phone": number,
       "companyName": companyName,
       "companyAddress": companyAddress,
-      "url": url,
-      'createdAt': DateTime.now().millisecondsSinceEpoch,
+      "url": imageUrl,
+      "createdAt": DateTime.now().millisecondsSinceEpoch,
     };
-
-    try {
-      await database.set(user);
+    await saveUserToDatabase(user, scaffoldMessenger: scaffoldMessenger);
+    scaffoldMessenger.hideCurrentSnackBar();
+    if (!exists) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Row(
@@ -493,7 +457,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
                   // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(context).size.width,
+                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
                   child: Text(
                     "New user created successfully!\n$name",
                     style: const TextStyle(
@@ -511,33 +475,53 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       );
       await Future.delayed(const Duration(seconds: 2)); // Wait for 4 seconds
       // ignore: use_build_context_synchronously
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MyApp()),
-        (route) => false,
-      );
-    } catch (e) {
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          this.context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  // Create a new user in the database.
+  void createUserIn({
+    required String name,
+    required String number,
+    required String companyName,
+    required String companyAddress,
+    required String imageUrl,
+    required ScaffoldMessengerState scaffoldMessenger,
+  }) async {
+    if (mounted) {
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Row(
             mainAxisAlignment: MainAxisAlignment.start,
             mainAxisSize: MainAxisSize.max,
             children: <Widget>[
-              const Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                child: Icon(
-                  Icons.error_outline_outlined,
-                  color: Color(0xFFFFFBD6),
-                  size: 22,
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: RotationTransition(
+                  turns: _animationController,
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.diagonal3Values(-1.0, 1.0, 1.0),
+                    child: const Icon(
+                      Icons.sync_rounded,
+                      color: Color(0xFFFFFBD6),
+                      size: 22,
+                    ),
+                  ),
                 ),
               ),
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
-                  // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(context).size.width,
+                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
                   child: Text(
-                    'Error creating a new user: $e!',
+                    "Creating a new user!\n$name",
                     style: const TextStyle(
                       fontFamily: "ComicNeue",
                       fontWeight: FontWeight.bold,
@@ -552,6 +536,180 @@ class _DetailsConfirmState extends State<DetailsConfirm>
         ),
       );
     }
+    final user = {
+      "id": number,
+      "name": name,
+      "phone": number,
+      "companyName": companyName,
+      "companyAddress": companyAddress,
+      "url": imageUrl,
+      "createdAt": DateTime.now().millisecondsSinceEpoch,
+    };
+    await saveUserToDatabase(user, scaffoldMessenger: scaffoldMessenger);
+    scaffoldMessenger.hideCurrentSnackBar();
+    if (!exists) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: Icon(
+                  Icons.done_all_rounded,
+                  color: Color(0xFFFFFBD6),
+                  size: 22,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                child: SizedBox(
+                  // ignore: use_build_context_synchronously
+                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                  child: Text(
+                    "New user created successfully!\n$name",
+                    style: const TextStyle(
+                      fontFamily: "ComicNeue",
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFFFFFBD6),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 2)); // Wait for 4 seconds
+      // ignore: use_build_context_synchronously
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          this.context,
+          MaterialPageRoute(
+              builder: (_) => InConfirm(
+                    name: name,
+                    number: number,
+                    cname: companyName,
+                    caddress: companyAddress,
+                    url: imageUrl,
+                  )),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  // Save data locally
+  Future<void> saveUserToDatabase(Map<String, dynamic> user,
+      {required ScaffoldMessengerState scaffoldMessenger}) async {
+    var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      '${DateTime.now().millisecondsSinceEpoch}',
+      '${DateTime.now().microsecondsSinceEpoch}',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    var platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, "database.db"),
+    );
+
+    final isUserExists = await database.rawQuery(
+        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
+    if (isUserExists.isNotEmpty) {
+      final List<Map<String, dynamic>> existingUsers = await database.query(
+        "users",
+        where: "id = ?",
+        whereArgs: [user["id"]],
+        limit: 1,
+      );
+      if (existingUsers.isNotEmpty) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.max,
+              children: <Widget>[
+                const Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                  child: Icon(
+                    Icons.error_outline_outlined,
+                    color: Color(0xFFFFFBD6),
+                    size: 22,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                  child: SizedBox(
+                    // ignore: use_build_context_synchronously
+                    width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                    child: const Text(
+                      "This user already exists!",
+                      style: TextStyle(
+                        fontFamily: "ComicNeue",
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFFFFFBD6),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        setState(() {
+          exists = true;
+        });
+        return;
+      } else {
+        await database.insert("users", user,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+        await flutterLocalNotificationsPlugin.show(
+          0, // Notification id (change as needed)
+          "User created successfully!", // Notification title
+          "Welcome to Syngery Intellutions ${user["name"]}", // Notification body
+          platformChannelSpecifics,
+          payload:
+              "notification_payload", // Optional payload for handling notification taps
+        );
+      }
+    } else {
+      await database.execute("""CREATE TABLE IF NOT EXISTS users(
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          phone TEXT,
+          companyName TEXT,
+          companyAddress TEXT,
+          url TEXT,
+          createdAt INTEGER)""");
+      await database.insert("users", user,
+          conflictAlgorithm: ConflictAlgorithm.replace);
+      await flutterLocalNotificationsPlugin.show(
+        0, // Notification id (change as needed)
+        "User created successfully!", // Notification title
+        "Welcome to Syngery Intellutions ${user["name"]}", // Notification body
+        platformChannelSpecifics,
+        payload:
+            "notification_payload", // Optional payload for handling notification taps
+      );
+    }
+  }
+
+  // Clean up the controller when the widget is disposed.
+  @override
+  void dispose() {
+    _animationController.dispose();
+    myName.dispose();
+    myNumber.dispose();
+    myCompanyName.dispose();
+    myCompanyAddress.dispose();
+    faceDetector.close();
+    super.dispose();
   }
 
   // Widget
@@ -747,8 +905,9 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                   fontSize: 16,
                                   color: Color.fromARGB(255, 65, 65, 65),
                                 ),
-                                errorText:
-                                    validate ? "Please enter your name!" : null,
+                                errorText: validateName
+                                    ? "Please enter your name!"
+                                    : null,
                                 errorStyle: const TextStyle(
                                   fontFamily: "ComicNeue",
                                   fontWeight: FontWeight.bold,
@@ -798,6 +957,24 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                           : stopListening,
                                 ),
                               ),
+                              onSubmitted: (value) {
+                                setState(() {
+                                  if (value.isEmpty) {
+                                    validateName = true;
+                                  } else {
+                                    setData();
+                                  }
+                                });
+                              },
+                              onChanged: (value) {
+                                setState(() {
+                                  if (value.isEmpty) {
+                                    validateName = true;
+                                  } else {
+                                    validateName = false;
+                                  }
+                                });
+                              },
                               keyboardType: TextInputType.name,
                             ),
                             const SizedBox(
@@ -830,7 +1007,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                   fontSize: 16,
                                   color: Color.fromARGB(255, 65, 65, 65),
                                 ),
-                                errorText: validate
+                                errorText: validateNumber
                                     ? "Please enter your phone number!"
                                     : null,
                                 errorStyle: const TextStyle(
@@ -883,6 +1060,24 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                 ),
                               ),
                               keyboardType: TextInputType.phone,
+                              onSubmitted: (value) {
+                                setState(() {
+                                  if (value.isEmpty) {
+                                    validateNumber = true;
+                                  } else {
+                                    setData();
+                                  }
+                                });
+                              },
+                              onChanged: (value) {
+                                setState(() {
+                                  if (value.isEmpty) {
+                                    validateNumber = true;
+                                  } else {
+                                    validateNumber = false;
+                                  }
+                                });
+                              },
                             ),
                             const SizedBox(
                               height: 20,
@@ -920,7 +1115,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                         fontSize: 16,
                                         color: Color.fromARGB(255, 65, 65, 65),
                                       ),
-                                      errorText: validate
+                                      errorText: validateCompanyName
                                           ? "Please enter your company name!"
                                           : null,
                                       errorStyle: const TextStyle(
@@ -972,6 +1167,24 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                                 : stopListening,
                                       ),
                                     ),
+                                    onSubmitted: (value) {
+                                      setState(() {
+                                        if (value.isEmpty) {
+                                          validateCompanyName = true;
+                                        } else {
+                                          setData();
+                                        }
+                                      });
+                                    },
+                                    onChanged: (value) {
+                                      setState(() {
+                                        if (value.isEmpty) {
+                                          validateCompanyName = true;
+                                        } else {
+                                          validateCompanyName = false;
+                                        }
+                                      });
+                                    },
                                     keyboardType: TextInputType.name,
                                   ),
                                   const SizedBox(
@@ -1008,7 +1221,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                         fontSize: 16,
                                         color: Color.fromARGB(255, 65, 65, 65),
                                       ),
-                                      errorText: validate
+                                      errorText: validateAddress
                                           ? "Please enter your company address!"
                                           : null,
                                       errorStyle: const TextStyle(
@@ -1060,6 +1273,24 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                                 : stopListening,
                                       ),
                                     ),
+                                    onSubmitted: (value) {
+                                      setState(() {
+                                        if (value.isEmpty) {
+                                          validateAddress = true;
+                                        } else {
+                                          setData();
+                                        }
+                                      });
+                                    },
+                                    onChanged: (value) {
+                                      setState(() {
+                                        if (value.isEmpty) {
+                                          validateAddress = true;
+                                        } else {
+                                          validateAddress = false;
+                                        }
+                                      });
+                                    },
                                     keyboardType: TextInputType.multiline,
                                   ),
                                   const SizedBox(
@@ -1198,64 +1429,140 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                               ),
                             ),
                             Padding(
-                              padding: extended == true
-                                  ? const EdgeInsetsDirectional.fromSTEB(
-                                      0, 20, 0, 20)
-                                  : const EdgeInsetsDirectional.fromSTEB(
-                                      0, 20, 0, 5),
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFFFBD6),
-                                ),
-                                onPressed: () {
-                                  createUser(
-                                    name: myName.text,
-                                    number: myNumber.text,
-                                    image: imageFile,
-                                    scaffoldMessenger:
-                                        scaffoldKey.currentState!,
-                                    companyName: extended
-                                        ? myCompanyName.text
-                                        : "Not defined",
-                                    companyAddress: extended
-                                        ? myCompanyAddress.text
-                                        : "Not defined",
-                                  );
-                                },
-                                child: const Padding(
-                                  padding: EdgeInsetsDirectional.fromSTEB(
-                                      0, 15, 0, 15),
-                                  child: Center(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.max,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: <Widget>[
-                                        Icon(
-                                          Icons.done_rounded,
-                                          color:
-                                              Color.fromARGB(255, 70, 70, 70),
-                                        ),
-                                        Padding(
-                                          padding:
-                                              EdgeInsetsDirectional.fromSTEB(
-                                                  5, 0, 0, 0),
-                                          child: Text(
-                                            "Submit",
-                                            style: TextStyle(
-                                              fontFamily: "ComicNeue",
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: Color.fromARGB(
-                                                  255, 65, 65, 65),
+                              padding: const EdgeInsetsDirectional.fromSTEB(
+                                  0, 10, 0, 0),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.max,
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Align(
+                                      alignment:
+                                          const AlignmentDirectional(0, 0),
+                                      child: Padding(
+                                        padding: const EdgeInsetsDirectional
+                                            .fromSTEB(2, 2, 10, 2),
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            if (!validateName &&
+                                                !validateNumber) {
+                                              createUser(
+                                                name: myName.text,
+                                                number: myNumber.text,
+                                                imageUrl: imagePath,
+                                                scaffoldMessenger:
+                                                    scaffoldKey.currentState!,
+                                                companyName: extended
+                                                    ? myCompanyName.text
+                                                    : "Not defined",
+                                                companyAddress: extended
+                                                    ? myCompanyAddress.text
+                                                    : "Not defined",
+                                              );
+                                            }
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFFFFFBD6),
+                                          ),
+                                          child: const Padding(
+                                            padding:
+                                                EdgeInsetsDirectional.fromSTEB(
+                                                    10, 20, 10, 20),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.max,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: <Widget>[
+                                                Icon(
+                                                  Icons.done_rounded,
+                                                  color: Color.fromARGB(
+                                                      255, 70, 70, 70),
+                                                ),
+                                                Padding(
+                                                  padding: EdgeInsetsDirectional
+                                                      .fromSTEB(5, 0, 0, 0),
+                                                  child: Text(
+                                                    "Submit",
+                                                    style: TextStyle(
+                                                      color: Color.fromARGB(
+                                                          255, 70, 70, 70),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        )
-                                      ],
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                                  Expanded(
+                                    child: Align(
+                                      alignment:
+                                          const AlignmentDirectional(0, 0),
+                                      child: Padding(
+                                        padding: const EdgeInsetsDirectional
+                                            .fromSTEB(10, 2, 2, 2),
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            if (!validateName &&
+                                                !validateNumber) {
+                                              createUserIn(
+                                                name: myName.text,
+                                                number: myNumber.text,
+                                                imageUrl: imagePath,
+                                                scaffoldMessenger:
+                                                    scaffoldKey.currentState!,
+                                                companyName: extended
+                                                    ? myCompanyName.text
+                                                    : "Not defined",
+                                                companyAddress: extended
+                                                    ? myCompanyAddress.text
+                                                    : "Not defined",
+                                              );
+                                            }
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFFFFFBD6),
+                                          ),
+                                          child: const Padding(
+                                            padding:
+                                                EdgeInsetsDirectional.fromSTEB(
+                                                    10, 20, 10, 20),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.max,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: <Widget>[
+                                                Icon(
+                                                  Icons.done_all_rounded,
+                                                  color: Color.fromARGB(
+                                                      255, 70, 70, 70),
+                                                ),
+                                                Padding(
+                                                  padding: EdgeInsetsDirectional
+                                                      .fromSTEB(5, 0, 0, 0),
+                                                  child: Text(
+                                                    "Submit & In",
+                                                    style: TextStyle(
+                                                      color: Color.fromARGB(
+                                                          255, 70, 70, 70),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
+                            ),
+                            const SizedBox(
+                              height: 20,
                             ),
                             Visibility(
                               visible: !extended,
@@ -1276,6 +1583,9 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                       ),
                                       Expanded(child: Divider()),
                                     ],
+                                  ),
+                                  const SizedBox(
+                                    height: 20,
                                   ),
                                   Padding(
                                     padding:
@@ -1350,7 +1660,19 @@ class _DetailsConfirmState extends State<DetailsConfirm>
         floatingActionButton: FloatingActionButton(
           backgroundColor: const Color(0xFF008B6A),
           onPressed: () {
-            Navigator.pop(context);
+            extended
+                ? Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ExtendedDetails(),
+                    ),
+                  )
+                : Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const Photo(),
+                    ),
+                  );
           },
           child: const Icon(Icons.arrow_back_ios_new_rounded),
         ),

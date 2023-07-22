@@ -516,7 +516,12 @@ class _MobileState extends State<Mobile> {
         floatingActionButton: FloatingActionButton(
           backgroundColor: const Color(0xFF008B6A),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const Name(),
+              ),
+            );
           },
           child: const Icon(Icons.arrow_back_ios_new_rounded),
         ),

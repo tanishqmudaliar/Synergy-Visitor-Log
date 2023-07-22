@@ -1,9 +1,11 @@
-import "package:cloud_firestore/cloud_firestore.dart";
+import "dart:io";
 import 'package:flutter/material.dart';
 import "package:flutter/services.dart";
 import "package:intl/intl.dart";
+import "package:path/path.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
+import "package:sqflite/sqflite.dart";
 import "package:synergyvisitorlog/main.dart";
 
 class Out extends StatefulWidget {
@@ -74,37 +76,37 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
       isLoading = true;
     });
 
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection("in")
-        .orderBy("createdAt",
-            descending:
-                true) // Assuming there's a "createdAt" field in the documents
-        .limit(5) // Fetch only the latest 5 documents
-        .get();
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, "database.db"),
+    );
+    final List<Map<String, dynamic>> queryResult = await database.query(
+      'entries_in',
+      orderBy: "createdAt DESC",
+    );
     if (mounted) {
       setState(() {
-        if (snapshot.docs.isEmpty == false) {
+        if (queryResult.isNotEmpty) {
           isLoading = false;
           isUser = true;
-          // Update allData and photoUrls with fetched data
-          allData = snapshot.docs.map((doc) {
-            int millisecondsEpoch =
-                (doc.data() as Map<String, dynamic>)["createdAt"];
+          // Update allData with fetched data
+          allData = queryResult.map((user) {
+            int millisecondsEpoch = int.parse(user["createdAt"]);
             DateTime dateTime =
                 DateTime.fromMillisecondsSinceEpoch(millisecondsEpoch);
             String formattedDateTime =
                 DateFormat('dd MMMM, yyyy | HH:mm').format(dateTime);
-
             return {
-              "id": doc.id,
-              "name": (doc.data() as Map<String, dynamic>)["name"],
-              "number": (doc.data() as Map<String, dynamic>)["number"],
+              "id": user['id'],
+              "name": user['name'],
+              "number": user['number'],
               "timestamp": millisecondsEpoch,
               "in": formattedDateTime,
-              "url": (doc.data() as Map<String, dynamic>)["url"],
+              "url": user['url'],
             };
           }).toList();
         } else {
+          // Set loading state to false when fetching users
           isLoading = false;
           isUser = false;
         }
@@ -118,113 +120,47 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
     setState(() {
       isLoading = true;
     });
-    final docRef = FirebaseFirestore.instance.collection("in").doc(number);
-    final snapshot = await docRef.get();
-    if (!snapshot.exists) {
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, 'database.db'),
+    );
+
+    final List<Map<String, dynamic>> queryResult = await database.query(
+      'entries_in',
+      where: 'number = ?',
+      whereArgs: [number],
+      limit: 1,
+    );
+
+    if (mounted) {
       setState(() {
-        isLoading = false;
-        isUser = false;
-      });
-    } else {
-      await docRef.get().then((DocumentSnapshot doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        setState(() {
-          int millisecondsEpoch =
-              (doc.data() as Map<String, dynamic>)["createdAt"];
+        if (queryResult.isNotEmpty) {
+          isLoading = false;
+          isUser = true;
+          final user = queryResult[0];
+          int millisecondsEpoch = int.parse(user["createdAt"]);
           DateTime dateTime =
               DateTime.fromMillisecondsSinceEpoch(millisecondsEpoch);
           String formattedDateTime =
               DateFormat('dd MMMM, yyyy | HH:mm').format(dateTime);
           allData.add({
-            "id": doc.id,
-            "name": data["name"],
-            "number": data["number"],
+            "id": user['id'],
+            "name": user['name'],
+            "number": user['number'],
             "timestamp": millisecondsEpoch,
             "in": formattedDateTime,
-            "url": data["url"],
+            "url": user['url'],
           });
+        } else {
+          // Set loading state to false when user is not found
           isLoading = false;
-          isUser = true;
-        });
+          isUser = false;
+        }
       });
     }
   }
 
   // Push data into the database
-  void checkNPull({
-    required String id,
-    required String name,
-    required String duration,
-    required ScaffoldMessengerState scaffoldMessenger,
-  }) async {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFFFFFBD6),
-          title: const Text(
-            "Please Confirm!",
-            style: TextStyle(
-              fontFamily: "ComicNeue",
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
-              color: Color.fromARGB(255, 65, 65, 65),
-            ),
-          ),
-          content: const Text(
-            "Are you sure you want to log out?",
-            style: TextStyle(
-              fontFamily: "ComicNeue",
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: Color.fromARGB(255, 65, 65, 65),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                  elevation: 2, backgroundColor: const Color(0xFF008B6A)),
-              child: const Text(
-                "Cancel",
-                style: TextStyle(
-                  fontFamily: "ComicNeue",
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Color(0xFFFFFBD6),
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                runPull(
-                  id: id,
-                  name: name,
-                  duration: duration,
-                  scaffoldMessenger: scaffoldMessenger,
-                );
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                  elevation: 2, backgroundColor: const Color(0xFF008B6A)),
-              child: const Text(
-                "Confirm",
-                style: TextStyle(
-                  fontFamily: "ComicNeue",
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Color(0xFFFFFBD6),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void runPull({
     required String id,
     required String name,
@@ -255,7 +191,7 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
             Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
               child: SizedBox(
-                width: 60 / 100 * MediaQuery.of(context).size.width,
+                width: 60 / 100 * MediaQuery.of(this.context).size.width,
                 child: Text(
                   "Logging you out!\n$name",
                   style: const TextStyle(
@@ -273,22 +209,56 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
     );
     String date = DateFormat('dd-MM-yyyy|kk:mm').format(DateTime.now());
 
-    final userDB = FirebaseFirestore.instance
-        .collection("users")
-        .doc(id)
-        .collection("inAndOut")
-        .doc("$date-out");
-
-    final inDB = FirebaseFirestore.instance.collection("in").doc(id);
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, "database.db"),
+    );
 
     final data = {
-      "outDateAndTime": DateTime.now(),
+      "key": UniqueKey().toString(),
+      "id": id,
+      "date": date,
+      "outDateAndTime": DateTime.now().toString(),
       "duration": duration,
     };
 
-    try {
-      await userDB.set(data);
-      await inDB.delete();
+    final outData = {
+      "id": id,
+    };
+    if (mounted) {
+      final isEntriesOutExists = await database.rawQuery(
+          "SELECT * FROM sqlite_master WHERE type='table' AND name='entries_out'");
+      if (isEntriesOutExists.isEmpty) {
+        await database.execute("""CREATE TABLE IF NOT EXISTS entries_out(
+          id TEXT PRIMARY KEY
+          )""");
+        await database.insert("entries_out", outData);
+      } else {
+        await database.insert("entries_out", outData);
+      }
+      await database.delete(
+        'entries_in',
+        where:
+            'id = ?', // Delete the row where "id" column matches the given id
+        whereArgs: [id], // Provide the value of id as the argument
+      );
+      final isTableExists = await database.rawQuery(
+          "SELECT * FROM sqlite_master WHERE type='table' AND name='users_out'");
+      if (isTableExists.isEmpty) {
+        await database.execute("""CREATE TABLE IF NOT EXISTS users_out(
+          key TEXT PRIMARY KEY,
+          id TEXT,
+          date TEXT,
+          outDateAndTime TEXT,
+          duration TEXT
+          )""");
+        await database.insert("users_out", data,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      } else {
+        await database.insert("users_out", data,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      scaffoldMessenger.hideCurrentSnackBar();
       scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Row(
@@ -307,7 +277,7 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
                   // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(context).size.width,
+                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
                   child: const Text(
                     "You're out!\nThanks for visiting, hope to see you again.",
                     style: TextStyle(
@@ -325,46 +295,13 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
       );
       await Future.delayed(const Duration(seconds: 2)); // Wait for 4 seconds
       // ignore: use_build_context_synchronously
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MyApp()),
-        (route) => false,
-      );
-    } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            mainAxisSize: MainAxisSize.max,
-            children: <Widget>[
-              const Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                child: Icon(
-                  Icons.error_outline_outlined,
-                  color: Color(0xFFFFFBD6),
-                  size: 22,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                child: SizedBox(
-                  // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(context).size.width,
-                  child: Text(
-                    'Error: $e!',
-                    style: const TextStyle(
-                      fontFamily: "ComicNeue",
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFFFFFBD6),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          this.context,
+          MaterialPageRoute(builder: (_) => const MyApp()),
+          (route) => false,
+        );
+      }
     }
   }
 
@@ -556,180 +493,259 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
                               : isUser
                                   ? allData
                                       .map(
-                                        (data) => GestureDetector(
-                                          onTap: () {
-                                            int millisecondsEpoch =
-                                                data["timestamp"];
-                                            DateTime inDateTime = DateTime
-                                                .fromMillisecondsSinceEpoch(
-                                                    millisecondsEpoch);
-                                            DateTime currentDateTime =
-                                                DateTime.now();
-                                            Duration difference =
-                                                currentDateTime
-                                                    .difference(inDateTime);
-
-                                            int days = difference.inDays;
-                                            int hours = difference.inHours
-                                                .remainder(24);
-                                            int minutes = difference.inMinutes
-                                                .remainder(60);
-                                            int seconds = difference.inSeconds
-                                                .remainder(60);
-
-                                            String formattedTime =
-                                                '$days day $hours hours $minutes minutes $seconds seconds';
-
-                                            checkNPull(
-                                              id: "${data["number"]}",
-                                              name: "${data["name"]}",
-                                              duration: formattedTime,
-                                              scaffoldMessenger:
-                                                  scaffoldKey.currentState!,
-                                            );
-                                          },
-                                          child: Card(
-                                            color: const Color(0xFFFFFBD6),
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsetsDirectional
-                                                      .fromSTEB(20, 20, 20, 20),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.max,
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: <Widget>[
-                                                  SizedBox(
-                                                    width: 40 /
-                                                        100 *
-                                                        MediaQuery.of(context)
-                                                            .size
-                                                            .width,
-                                                    child: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.max,
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          "${data["name"]}",
-                                                          style:
-                                                              const TextStyle(
-                                                            fontFamily:
-                                                                "ComicNeue",
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 22,
-                                                            color:
-                                                                Color.fromARGB(
-                                                                    255,
-                                                                    50,
-                                                                    50,
-                                                                    50),
-                                                          ),
-                                                        ),
-                                                        const Divider(
-                                                          color: Color.fromARGB(
-                                                              255, 50, 50, 50),
-                                                          thickness: 2,
-                                                        ),
-                                                        Text(
-                                                          "${data["number"]}",
-                                                          style:
-                                                              const TextStyle(
-                                                            fontFamily:
-                                                                "ComicNeue",
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 18,
-                                                            color:
-                                                                Color.fromARGB(
-                                                                    255,
-                                                                    50,
-                                                                    50,
-                                                                    50),
-                                                          ),
-                                                        ),
-                                                        const Divider(
-                                                          color: Color.fromARGB(
-                                                              255, 50, 50, 50),
-                                                          thickness: 2,
-                                                        ),
-                                                        Text(
-                                                          "In Date & Time: ${data["in"]}",
-                                                          style:
-                                                              const TextStyle(
-                                                            fontFamily:
-                                                                "ComicNeue",
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 14,
-                                                            color:
-                                                                Color.fromARGB(
-                                                                    255,
-                                                                    50,
-                                                                    50,
-                                                                    50),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  data["url"] == null
-                                                      ? Container(
-                                                          width: 100,
-                                                          height: 100,
-                                                          decoration:
-                                                              const BoxDecoration(
-                                                            color:
-                                                                Color.fromARGB(
-                                                                    255,
-                                                                    254,
-                                                                    227,
-                                                                    227),
-                                                            shape:
-                                                                BoxShape.circle,
-                                                          ),
-                                                        )
-                                                      : Container(
-                                                          width: 100,
-                                                          height: 100,
-                                                          decoration:
-                                                              const BoxDecoration(
-                                                            color:
-                                                                Color.fromARGB(
-                                                                    255,
-                                                                    254,
-                                                                    227,
-                                                                    227),
-                                                            shape:
-                                                                BoxShape.circle,
-                                                          ),
-                                                          child: ClipRRect(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        15),
-                                                            child:
-                                                                Image.network(
-                                                              "${data["url"]}",
-                                                              width:
-                                                                  MediaQuery.of(
-                                                                          context)
-                                                                      .size
-                                                                      .width,
-                                                              height: 100,
-                                                              fit: BoxFit
-                                                                  .contain,
+                                        (data) => Card(
+                                          color: const Color(0xFFFFFBD6),
+                                          child: Padding(
+                                            padding: const EdgeInsetsDirectional
+                                                .fromSTEB(20, 20, 20, 20),
+                                            child: Column(
+                                              children: <Widget>[
+                                                Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.max,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: <Widget>[
+                                                    SizedBox(
+                                                      width: 40 /
+                                                          100 *
+                                                          MediaQuery.of(context)
+                                                              .size
+                                                              .width,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.max,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            "${data["name"]}",
+                                                            style:
+                                                                const TextStyle(
+                                                              fontFamily:
+                                                                  "ComicNeue",
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 22,
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      50,
+                                                                      50,
+                                                                      50),
                                                             ),
                                                           ),
+                                                          const Divider(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    50,
+                                                                    50,
+                                                                    50),
+                                                            thickness: 2,
+                                                          ),
+                                                          Text(
+                                                            "${data["number"]}",
+                                                            style:
+                                                                const TextStyle(
+                                                              fontFamily:
+                                                                  "ComicNeue",
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 18,
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      50,
+                                                                      50,
+                                                                      50),
+                                                            ),
+                                                          ),
+                                                          const Divider(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    50,
+                                                                    50,
+                                                                    50),
+                                                            thickness: 2,
+                                                          ),
+                                                          Text(
+                                                            "In Date & Time: ${data["in"]}",
+                                                            style:
+                                                                const TextStyle(
+                                                              fontFamily:
+                                                                  "ComicNeue",
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 14,
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      50,
+                                                                      50,
+                                                                      50),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    data["url"] == null
+                                                        ? Container(
+                                                            width: 100,
+                                                            height: 100,
+                                                            decoration:
+                                                                const BoxDecoration(
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      254,
+                                                                      227,
+                                                                      227),
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
+                                                          )
+                                                        : Container(
+                                                            width: 100,
+                                                            height: 100,
+                                                            decoration:
+                                                                const BoxDecoration(
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      254,
+                                                                      227,
+                                                                      227),
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
+                                                            child: ClipRRect(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          15),
+                                                              child: Image.file(
+                                                                File(
+                                                                    "${data["url"]}"),
+                                                                width: MediaQuery.of(
+                                                                        context)
+                                                                    .size
+                                                                    .width,
+                                                                height: 100,
+                                                                fit: BoxFit
+                                                                    .contain,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                  ],
+                                                ),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsetsDirectional
+                                                              .fromSTEB(
+                                                          0, 15, 0, 0),
+                                                  child: ElevatedButton(
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          const Color(
+                                                              0xFF008B6A),
+                                                    ),
+                                                    onPressed: () {
+                                                      int millisecondsEpoch =
+                                                          data["timestamp"];
+                                                      DateTime inDateTime = DateTime
+                                                          .fromMillisecondsSinceEpoch(
+                                                              millisecondsEpoch);
+                                                      DateTime currentDateTime =
+                                                          DateTime.now();
+                                                      Duration difference =
+                                                          currentDateTime
+                                                              .difference(
+                                                                  inDateTime);
+
+                                                      int days =
+                                                          difference.inDays;
+                                                      int hours = difference
+                                                          .inHours
+                                                          .remainder(24);
+                                                      int minutes = difference
+                                                          .inMinutes
+                                                          .remainder(60);
+                                                      int seconds = difference
+                                                          .inSeconds
+                                                          .remainder(60);
+
+                                                      String formattedTime =
+                                                          '$days day $hours hours $minutes minutes $seconds seconds';
+
+                                                      runPull(
+                                                        id: "${data["number"]}",
+                                                        name: "${data["name"]}",
+                                                        duration: formattedTime,
+                                                        scaffoldMessenger:
+                                                            scaffoldKey
+                                                                .currentState!,
+                                                      );
+                                                    },
+                                                    child: const Padding(
+                                                      padding:
+                                                          EdgeInsetsDirectional
+                                                              .fromSTEB(
+                                                                  0, 15, 0, 15),
+                                                      child: Center(
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.max,
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .center,
+                                                          children: <Widget>[
+                                                            Icon(
+                                                              Icons
+                                                                  .arrow_forward_ios_rounded,
+                                                              color: Color(
+                                                                  0xFFFFFBD6),
+                                                              size: 20,
+                                                            ),
+                                                            Padding(
+                                                              padding:
+                                                                  EdgeInsetsDirectional
+                                                                      .fromSTEB(
+                                                                          3,
+                                                                          1,
+                                                                          0,
+                                                                          0),
+                                                              child: Text(
+                                                                "Out",
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontFamily:
+                                                                      "ComicNeue",
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 17,
+                                                                  color: Color(
+                                                                      0xFFFFFBD6),
+                                                                ),
+                                                              ),
+                                                            )
+                                                          ],
                                                         ),
-                                                ],
-                                              ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),

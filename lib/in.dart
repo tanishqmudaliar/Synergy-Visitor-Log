@@ -1,8 +1,10 @@
-import "package:cloud_firestore/cloud_firestore.dart";
+import "dart:io";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
+import "package:path/path.dart";
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
+import "package:sqflite/sqflite.dart";
 import "package:synergyvisitorlog/inconfirm.dart";
 
 class In extends StatefulWidget {
@@ -68,70 +70,96 @@ class _InState extends State<In> {
       isUser = false;
     });
 
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection("users")
-        .orderBy("createdAt",
-            descending:
-                true) // Assuming there's a "createdAt" field in the documents
-        .limit(5) // Fetch only the latest 5 documents
-        .get();
-    if (mounted) {
-      setState(() {
-        if (snapshot.docs.isEmpty == false) {
-          isLoading = false;
-          isUser = true;
-          // Update allData and photoUrls with fetched data
-          allData = snapshot.docs
-              .map((doc) => {
-                    "id": doc.id,
-                    "name": (doc.data() as Map<String, dynamic>)["name"],
-                    "number": (doc.data() as Map<String, dynamic>)["phone"],
-                    "cname":
-                        (doc.data() as Map<String, dynamic>)["companyName"],
-                    "cdress":
-                        (doc.data() as Map<String, dynamic>)["companyAddress"],
-                    "url": (doc.data() as Map<String, dynamic>)["photo"],
-                  })
-              .toList();
-        } else {
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, "database.db"),
+    );
+    final isUserExists = await database.rawQuery(
+        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
+    if (isUserExists.isNotEmpty) {
+      final List<Map<String, dynamic>> queryResult = await database.query(
+        'users',
+        orderBy: "createdAt DESC",
+        limit: 15,
+      );
+      if (mounted) {
+        setState(
+          () {
+            isLoading = false;
+            isUser = true;
+            // Update allData with fetched data
+            allData = queryResult.map((user) {
+              return {
+                "id": user['id'],
+                "name": user['name'],
+                "number": user['phone'],
+                "cname": user['companyName'],
+                "cdress": user['companyAddress'],
+                "url": user['url'],
+              };
+            }).toList();
+          },
+        );
+      }
+    } else {
+      setState(
+        () {
           // Set loading state to false when fetching users
           isLoading = false;
           isUser = false;
-        }
-      });
+        },
+      );
     }
   }
 
   // Fetch a single user
   void fetchUser({required String number}) async {
-    // Set loading state to true when fetching users
+    // Set loading state to true when fetching user
     setState(() {
       isLoading = true;
       isUser = false;
     });
-    final docRef = FirebaseFirestore.instance.collection("users").doc(number);
-    final snapshot = await docRef.get();
-    if (!snapshot.exists) {
-      setState(() {
-        isLoading = false;
-        isUser = false;
-      });
+
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, 'database.db'),
+    );
+    final isUserExists = await database.rawQuery(
+        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
+    if (isUserExists.isEmpty) {
+      final List<Map<String, dynamic>> queryResult = await database.query(
+        'users',
+        where: 'id = ?',
+        whereArgs: [number],
+        limit: 1,
+      );
+      if (mounted) {
+        setState(
+          () {
+            isLoading = false;
+            isUser = true;
+            final user = queryResult[0];
+            allData.add(
+              {
+                'id': user['id'],
+                'name': user['name'],
+                'number': user['phone'],
+                'cname': user['companyName'],
+                'cdress': user['companyAddress'],
+                'url': user['url'],
+              },
+            );
+          },
+        );
+      }
     } else {
-      await docRef.get().then((DocumentSnapshot doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        setState(() {
-          allData.add({
-            "id": doc.id,
-            "name": data["name"],
-            "number": data["phone"],
-            "cname": data["companyName"],
-            "cdress": data["companyAddress"],
-            "url": data["photo"],
-          });
+      setState(
+        () {
+          // Set loading state to false when user is not found
           isLoading = false;
-          isUser = true;
-        });
-      });
+          isUser = false;
+        },
+      );
     }
   }
 
@@ -324,161 +352,270 @@ class _InState extends State<In> {
                             : isUser
                                 ? allData
                                     .map(
-                                      (data) => GestureDetector(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => InConfirm(
-                                                name: "${data["name"]}",
-                                                number: "${data["number"]}",
-                                                url: "${data["url"]}",
-                                                cname: "${data["cname"]}",
-                                                caddress: "${data["cdress"]}",
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        child: Card(
-                                          color: const Color(0xFFFFFBD6),
-                                          child: Padding(
+                                      (data) => Card(
+                                        color: const Color(0xFFFFFBD6),
+                                        child: Padding(
                                             padding: const EdgeInsetsDirectional
                                                 .fromSTEB(20, 20, 20, 20),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.max,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                            child: Column(
                                               children: <Widget>[
-                                                SizedBox(
-                                                  width: 40 /
-                                                      100 *
-                                                      MediaQuery.of(context)
-                                                          .size
-                                                          .width,
-                                                  child: Column(
-                                                    mainAxisSize:
-                                                        MainAxisSize.max,
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        "${data["name"]}",
-                                                        style: const TextStyle(
-                                                          fontFamily:
-                                                              "ComicNeue",
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 22,
-                                                          color: Color.fromARGB(
-                                                              255, 50, 50, 50),
-                                                        ),
+                                                Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.max,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: <Widget>[
+                                                    SizedBox(
+                                                      width: 40 /
+                                                          100 *
+                                                          MediaQuery.of(context)
+                                                              .size
+                                                              .width,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.max,
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            "${data["name"]}",
+                                                            style:
+                                                                const TextStyle(
+                                                              fontFamily:
+                                                                  "ComicNeue",
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 22,
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      50,
+                                                                      50,
+                                                                      50),
+                                                            ),
+                                                          ),
+                                                          const Divider(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    50,
+                                                                    50,
+                                                                    50),
+                                                            thickness: 2,
+                                                          ),
+                                                          Text(
+                                                            "${data["number"]}",
+                                                            style:
+                                                                const TextStyle(
+                                                              fontFamily:
+                                                                  "ComicNeue",
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 18,
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      50,
+                                                                      50,
+                                                                      50),
+                                                            ),
+                                                          ),
+                                                          const Divider(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    50,
+                                                                    50,
+                                                                    50),
+                                                            thickness: 2,
+                                                          ),
+                                                          Text(
+                                                            "Company: ${data["cname"]}",
+                                                            style:
+                                                                const TextStyle(
+                                                              fontFamily:
+                                                                  "ComicNeue",
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 14,
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      50,
+                                                                      50,
+                                                                      50),
+                                                            ),
+                                                          ),
+                                                          const Divider(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    50,
+                                                                    50,
+                                                                    50),
+                                                            thickness: 2,
+                                                          ),
+                                                          Text(
+                                                            "Company Address: ${data["cdress"]}",
+                                                            style:
+                                                                const TextStyle(
+                                                              fontFamily:
+                                                                  "ComicNeue",
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 12,
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      50,
+                                                                      50,
+                                                                      50),
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
-                                                      const Divider(
-                                                        color: Color.fromARGB(
-                                                            255, 50, 50, 50),
-                                                        thickness: 2,
-                                                      ),
-                                                      Text(
-                                                        "${data["number"]}",
-                                                        style: const TextStyle(
-                                                          fontFamily:
-                                                              "ComicNeue",
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 18,
-                                                          color: Color.fromARGB(
-                                                              255, 50, 50, 50),
-                                                        ),
-                                                      ),
-                                                      const Divider(
-                                                        color: Color.fromARGB(
-                                                            255, 50, 50, 50),
-                                                        thickness: 2,
-                                                      ),
-                                                      Text(
-                                                        "Company: ${data["cname"]}",
-                                                        style: const TextStyle(
-                                                          fontFamily:
-                                                              "ComicNeue",
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 14,
-                                                          color: Color.fromARGB(
-                                                              255, 50, 50, 50),
-                                                        ),
-                                                      ),
-                                                      const Divider(
-                                                        color: Color.fromARGB(
-                                                            255, 50, 50, 50),
-                                                        thickness: 2,
-                                                      ),
-                                                      Text(
-                                                        "Company Address: ${data["cdress"]}",
-                                                        style: const TextStyle(
-                                                          fontFamily:
-                                                              "ComicNeue",
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 12,
-                                                          color: Color.fromARGB(
-                                                              255, 50, 50, 50),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                data["url"] == null
-                                                    ? Container(
-                                                        width: 100,
-                                                        height: 100,
-                                                        decoration:
-                                                            const BoxDecoration(
-                                                          color: Color.fromARGB(
-                                                              255,
-                                                              254,
-                                                              227,
-                                                              227),
-                                                          shape:
-                                                              BoxShape.circle,
-                                                        ),
-                                                      )
-                                                    : Container(
-                                                        width: 100,
-                                                        height: 100,
-                                                        decoration:
-                                                            const BoxDecoration(
-                                                          color: Color.fromARGB(
-                                                              255,
-                                                              254,
-                                                              227,
-                                                              227),
-                                                          shape:
-                                                              BoxShape.circle,
-                                                        ),
-                                                        child: ClipRRect(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(15),
-                                                          child: Image.network(
-                                                            "${data["url"]}",
-                                                            width:
-                                                                MediaQuery.of(
+                                                    ),
+                                                    data["url"] == null
+                                                        ? Container(
+                                                            width: 100,
+                                                            height: 100,
+                                                            decoration:
+                                                                const BoxDecoration(
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      254,
+                                                                      227,
+                                                                      227),
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
+                                                          )
+                                                        : Container(
+                                                            width: 100,
+                                                            height: 100,
+                                                            decoration:
+                                                                const BoxDecoration(
+                                                              color: Color
+                                                                  .fromARGB(
+                                                                      255,
+                                                                      254,
+                                                                      227,
+                                                                      227),
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                            ),
+                                                            child: ClipRRect(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          15),
+                                                              child: Image.file(
+                                                                File(
+                                                                    "${data["url"]}"),
+                                                                width: MediaQuery.of(
                                                                         context)
                                                                     .size
                                                                     .width,
-                                                            height: 100,
-                                                            fit: BoxFit.contain,
+                                                                height: 100,
+                                                                fit: BoxFit
+                                                                    .contain,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                  ],
+                                                ),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsetsDirectional
+                                                              .fromSTEB(
+                                                          0, 15, 0, 0),
+                                                  child: ElevatedButton(
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          const Color(
+                                                              0xFF008B6A),
+                                                    ),
+                                                    onPressed: () {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              InConfirm(
+                                                            name:
+                                                                "${data["name"]}",
+                                                            number:
+                                                                "${data["number"]}",
+                                                            url:
+                                                                "${data["url"]}",
+                                                            cname:
+                                                                "${data["cname"]}",
+                                                            caddress:
+                                                                "${data["cdress"]}",
                                                           ),
                                                         ),
+                                                      );
+                                                    },
+                                                    child: const Padding(
+                                                      padding:
+                                                          EdgeInsetsDirectional
+                                                              .fromSTEB(
+                                                                  0, 15, 0, 15),
+                                                      child: Center(
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.max,
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .center,
+                                                          children: <Widget>[
+                                                            Icon(
+                                                              Icons
+                                                                  .arrow_forward_ios_rounded,
+                                                              color: Color(
+                                                                  0xFFFFFBD6),
+                                                              size: 20,
+                                                            ),
+                                                            Padding(
+                                                              padding:
+                                                                  EdgeInsetsDirectional
+                                                                      .fromSTEB(
+                                                                          3,
+                                                                          1,
+                                                                          0,
+                                                                          0),
+                                                              child: Text(
+                                                                "In",
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontFamily:
+                                                                      "ComicNeue",
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 17,
+                                                                  color: Color(
+                                                                      0xFFFFFBD6),
+                                                                ),
+                                                              ),
+                                                            )
+                                                          ],
+                                                        ),
                                                       ),
+                                                    ),
+                                                  ),
+                                                ),
                                               ],
-                                            ),
-                                          ),
-                                        ),
+                                            )),
                                       ),
                                     )
                                     .toList()

@@ -1,6 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// ignore_for_file: use_build_context_synchronously
+
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:synergyvisitorlog/main.dart';
 
 class InConfirm extends StatefulWidget {
@@ -49,18 +53,16 @@ class _InConfirmState extends State<InConfirm>
 
   // fetch data from the database
   void fetchData() async {
-    QuerySnapshot staff =
-        await FirebaseFirestore.instance.collection("staff").get();
-
+    final databasePath = await getDatabasesPath();
+    final database = await openDatabase(
+      join(databasePath, 'database.db'),
+    );
+    final staffResult = await database.query('staff');
+    final locationResult = await database.query('location');
     setState(() {
-      staffList = staff.docs.map((doc) => doc.id).toList();
-    });
-
-    QuerySnapshot location =
-        await FirebaseFirestore.instance.collection("location").get();
-
-    setState(() {
-      locationList = location.docs.map((doc) => doc.id).toList();
+      staffList = staffResult.map((staff) => staff['id'] as String).toList();
+      locationList =
+          locationResult.map((location) => location['id'] as String).toList();
     });
   }
 
@@ -72,62 +74,16 @@ class _InConfirmState extends State<InConfirm>
     required String url,
     required ScaffoldMessengerState scaffoldMessenger,
   }) async {
-    if (selectedOptionHost == 'Select Host') {
-      // Show a pop-up dialog if selectedOption is true
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFFFFFBD6),
-            title: const Text(
-              "Choose the person whom you want to meet!",
-              style: TextStyle(
-                fontFamily: "ComicNeue",
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: Color.fromARGB(255, 65, 65, 65),
-              ),
-            ),
-            content: const Text(
-              "Please choose the person whom you are going to meet for security purposes!",
-              style: TextStyle(
-                fontFamily: "ComicNeue",
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color.fromARGB(255, 65, 65, 65),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: TextButton.styleFrom(
-                    elevation: 2, backgroundColor: const Color(0xFF008B6A)),
-                child: const Text(
-                  "OK",
-                  style: TextStyle(
-                    fontFamily: "ComicNeue",
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Color(0xFFFFFBD6),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-    } else {
-      if (selectedOptionLocation == "Select Location") {
+    if (mounted) {
+      if (selectedOptionHost == 'Select Host') {
         // Show a pop-up dialog if selectedOption is true
         showDialog(
-          context: context,
+          context: this.context,
           builder: (BuildContext context) {
             return AlertDialog(
               backgroundColor: const Color(0xFFFFFBD6),
               title: const Text(
-                "Choose the location!",
+                "Choose the person whom you want to meet!",
                 style: TextStyle(
                   fontFamily: "ComicNeue",
                   fontWeight: FontWeight.bold,
@@ -136,7 +92,7 @@ class _InConfirmState extends State<InConfirm>
                 ),
               ),
               content: const Text(
-                "Please choose the location where you are meeting the host!",
+                "Please choose the person whom you are going to meet for security purposes!",
                 style: TextStyle(
                   fontFamily: "ComicNeue",
                   fontWeight: FontWeight.bold,
@@ -166,34 +122,41 @@ class _InConfirmState extends State<InConfirm>
           },
         );
       } else {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              mainAxisSize: MainAxisSize.max,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                  child: RotationTransition(
-                    turns: _animationController,
-                    child: Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.diagonal3Values(-1.0, 1.0, 1.0),
-                      child: const Icon(
-                        Icons.sync_rounded,
-                        color: Color(0xFFFFFBD6),
-                        size: 22,
-                      ),
-                    ),
+        if (selectedOptionLocation == "Select Location") {
+          // Show a pop-up dialog if selectedOption is true
+          showDialog(
+            context: this.context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                backgroundColor: const Color(0xFFFFFBD6),
+                title: const Text(
+                  "Choose the location!",
+                  style: TextStyle(
+                    fontFamily: "ComicNeue",
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    color: Color.fromARGB(255, 65, 65, 65),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                  child: SizedBox(
-                    width: 60 / 100 * MediaQuery.of(context).size.width,
-                    child: Text(
-                      "Entering you in!\n$name",
-                      style: const TextStyle(
+                content: const Text(
+                  "Please choose the location where you are meeting the host!",
+                  style: TextStyle(
+                    fontFamily: "ComicNeue",
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Color.fromARGB(255, 65, 65, 65),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: TextButton.styleFrom(
+                        elevation: 2, backgroundColor: const Color(0xFF008B6A)),
+                    child: const Text(
+                      "OK",
+                      style: TextStyle(
                         fontFamily: "ComicNeue",
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -201,121 +164,90 @@ class _InConfirmState extends State<InConfirm>
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        );
-        String date = DateFormat('dd-MM-yyyy|kk:mm').format(DateTime.now());
-
-        final userDB = FirebaseFirestore.instance
-            .collection("users")
-            .doc(id)
-            .collection("inAndOut")
-            .doc("$date-in");
-
-        final inDB = FirebaseFirestore.instance.collection("in").doc(id);
-
-        final data = {
-          "inDateAndTime": DateTime.now(),
-          "personMet": selectedOptionHost,
-          "location": selectedOptionLocation,
-        };
-
-        final inData = {
-          'createdAt': DateTime.now().millisecondsSinceEpoch,
-          "name": name,
-          "number": number,
-          "url": url,
-          "personMet": selectedOptionHost,
-          "location": selectedOptionLocation,
-        };
-        inDB.get().then((DocumentSnapshot documentSnapshot) async {
-          if (documentSnapshot.exists) {
-            scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.max,
-                  children: <Widget>[
-                    const Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                      child: Icon(
-                        Icons.error_rounded,
-                        color: Color(0xFFFFFBD6),
-                        size: 22,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                      child: SizedBox(
-                        // ignore: use_build_context_synchronously
-                        width: 60 / 100 * MediaQuery.of(context).size.width,
-                        child: const Text(
-                          "You're already logged in please log out before logging in again!",
-                          style: TextStyle(
-                            fontFamily: "ComicNeue",
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Color(0xFFFFFBD6),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          } else {
-            try {
-              await userDB.set(data);
-              await inDB.set(inData);
-              scaffoldMessenger.showSnackBar(
-                SnackBar(
-                  content: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.max,
-                    children: <Widget>[
-                      const Padding(
-                        padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                        child: Icon(
-                          Icons.done_all_rounded,
+                ],
+              );
+            },
+          );
+        } else {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisSize: MainAxisSize.max,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                    child: RotationTransition(
+                      turns: _animationController,
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.diagonal3Values(-1.0, 1.0, 1.0),
+                        child: const Icon(
+                          Icons.sync_rounded,
                           color: Color(0xFFFFFBD6),
                           size: 22,
                         ),
                       ),
-                      Padding(
-                        padding:
-                            const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                        child: SizedBox(
-                          // ignore: use_build_context_synchronously
-                          width: 60 /
-                              100 *
-                              // ignore: use_build_context_synchronously
-                              MediaQuery.of(context).size.width,
-                          child: const Text(
-                            "You're in",
-                            style: TextStyle(
-                              fontFamily: "ComicNeue",
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Color(0xFFFFFBD6),
-                            ),
-                          ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                    child: SizedBox(
+                      width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                      child: Text(
+                        "Entering you in!\n$name",
+                        style: const TextStyle(
+                          fontFamily: "ComicNeue",
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Color(0xFFFFFBD6),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-              await Future.delayed(const Duration(seconds: 2));
-              // ignore: use_build_context_synchronously
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const MyApp()),
-                (route) => false,
-              );
-            } catch (e) {
+                ],
+              ),
+            ),
+          );
+          String date = DateFormat('dd-MM-yyyy|kk:mm').format(DateTime.now());
+
+          final databasePath = await getDatabasesPath();
+          final database = await openDatabase(
+            join(databasePath, "database.db"),
+          );
+
+          final inData = {
+            "id": id,
+            'createdAt': DateTime.now().millisecondsSinceEpoch.toString(),
+            "name": name,
+            "number": number,
+            "url": url,
+            "personMet": selectedOptionHost,
+            "location": selectedOptionLocation,
+          };
+
+          final data = {
+            "key": UniqueKey().toString(),
+            "id": id,
+            "date": date,
+            "inDateAndTime": DateTime.now().toString(),
+            "personMet": selectedOptionHost,
+            "location": selectedOptionLocation,
+          };
+          final isTableExists = await database.rawQuery(
+              "SELECT * FROM sqlite_master WHERE type='table' AND name='entries_in'");
+          if (isTableExists.isNotEmpty) {
+            final List<Map<String, dynamic>> existingUsers =
+                await database.query(
+              "entries_in",
+              where: "id = ?",
+              whereArgs: [id],
+              limit: 1,
+            );
+
+            if (existingUsers.isNotEmpty) {
+              // The user exists in the table, do your desired actions here
+              scaffoldMessenger.hideCurrentSnackBar();
               scaffoldMessenger.showSnackBar(
                 SnackBar(
                   content: Row(
@@ -334,10 +266,63 @@ class _InConfirmState extends State<InConfirm>
                         padding:
                             const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                         child: SizedBox(
-                          // ignore: use_build_context_synchronously
-                          width: 60 / 100 * MediaQuery.of(context).size.width,
+                          width:
+                              60 / 100 * MediaQuery.of(this.context).size.width,
+                          child: const Text(
+                            "This user already exists!",
+                            style: TextStyle(
+                              fontFamily: "ComicNeue",
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFFFFFBD6),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+              return;
+            } else {
+              // The user does not exist in the table, you can assign a random value
+              await database.insert("entries_in", inData,
+                  conflictAlgorithm: ConflictAlgorithm.replace);
+              final isEntriesOut = await database.rawQuery(
+                  "SELECT * FROM sqlite_master WHERE type='table' AND name='entries_out'");
+              if (isEntriesOut.isNotEmpty) {
+                await database.delete(
+                  'entries_out',
+                  where:
+                      'id = ?', // Delete the row where "id" column matches the given id
+                  whereArgs: [id], // Provide the value of id as the argument
+                );
+              }
+              await database.insert("users_in", data,
+                  conflictAlgorithm: ConflictAlgorithm.replace);
+              scaffoldMessenger.hideCurrentSnackBar();
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.max,
+                    children: <Widget>[
+                      const Padding(
+                        padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                        child: Icon(
+                          Icons.done_all_rounded,
+                          color: Color(0xFFFFFBD6),
+                          size: 22,
+                        ),
+                      ),
+                      Padding(
+                        padding:
+                            const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                        child: SizedBox(
+                          width:
+                              60 / 100 * MediaQuery.of(this.context).size.width,
                           child: Text(
-                            'Error: $e!',
+                            "Visitor has successfully logged in!\n$name",
                             style: const TextStyle(
                               fontFamily: "ComicNeue",
                               fontWeight: FontWeight.bold,
@@ -351,9 +336,92 @@ class _InConfirmState extends State<InConfirm>
                   ),
                 ),
               );
+              await Future.delayed(
+                  const Duration(seconds: 2)); // Wait for 4 seconds
+              Navigator.pushAndRemoveUntil(
+                this.context,
+                MaterialPageRoute(builder: (_) => const HomePage()),
+                (route) => false,
+              );
             }
+          } else {
+            await database.execute(
+              """CREATE TABLE IF NOT EXISTS entries_in(
+          id TEXT PRIMARY KEY,
+          createdAt TEXT,
+          name TEXT,
+          number TEXT,
+          url TEXT,
+          personMet TEXT,
+          location TEXT
+          )""",
+            );
+            await database.execute("""CREATE TABLE IF NOT EXISTS users_in(
+              key TEXT PRIMARY KEY,
+          id TEXT,
+          date TEXT,
+          inDateAndTime TEXT,
+          personMet TEXT,
+          location TEXT
+          )""");
+            await database.insert("entries_in", inData,
+                conflictAlgorithm: ConflictAlgorithm.replace);
+            final isEntriesOut = await database.rawQuery(
+                "SELECT * FROM sqlite_master WHERE type='table' AND name='entries_out'");
+            if (isEntriesOut.isNotEmpty) {
+              await database.delete(
+                'entries_out',
+                where:
+                    'id = ?', // Delete the row where "id" column matches the given id
+                whereArgs: [id], // Provide the value of id as the argument
+              );
+            }
+            await database.insert("users_in", data,
+                conflictAlgorithm: ConflictAlgorithm.replace);
+            scaffoldMessenger.hideCurrentSnackBar();
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.max,
+                  children: <Widget>[
+                    const Padding(
+                      padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                      child: Icon(
+                        Icons.done_all_rounded,
+                        color: Color(0xFFFFFBD6),
+                        size: 22,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                      child: SizedBox(
+                        width:
+                            60 / 100 * MediaQuery.of(this.context).size.width,
+                        child: Text(
+                          "Visitor has successfully logged in!\n$name",
+                          style: const TextStyle(
+                            fontFamily: "ComicNeue",
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Color(0xFFFFFBD6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+            await Future.delayed(
+                const Duration(seconds: 2)); // Wait for 4 seconds
+            Navigator.pushAndRemoveUntil(
+              this.context,
+              MaterialPageRoute(builder: (_) => const HomePage()),
+              (route) => false,
+            );
           }
-        });
+        }
       }
     }
   }
@@ -514,8 +582,8 @@ class _InConfirmState extends State<InConfirm>
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(15),
-                                    child: Image.network(
-                                      widget.url,
+                                    child: Image.file(
+                                      File(widget.url),
                                       width: MediaQuery.of(context).size.width,
                                       height: 100,
                                       fit: BoxFit.contain,
