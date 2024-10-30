@@ -1,16 +1,27 @@
-# Synergy Visitor's Log
+# Synergy Visitor Log
 
-An application to log data for new visitor's
+Synergy Visitor Log is a Flutter application designed to manage visitor logs efficiently. It integrates with Firebase for data storage and synchronization, ensuring that visitor data is always up-to-date and accessible.
+
+## Features
+
+- **Visitor Check-In and Check-Out**: Log visitor entries and exits.
+- **Visitor Enrollment**: Enroll new visitors with their details.
+- **Member Management**: Manage and view enrolled visitors.
+- **Background Data Synchronization**: Sync data with Firebase in the background.
+- **Local Data Storage**: Store data locally using SQLite.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### Prerequisites
 
-A few resources to get you started if this is your first Flutter project:
+- Flutter SDK
+- Android Studio or Visual Studio Code
+- Firebase account
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Installation
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. **Clone the repository:**
+
+   ```sh
+   git clone https://github.com/tanishqmudaliar/Synergy-Visitor-Log.git
+   cd Synergy-Visitor-Log
