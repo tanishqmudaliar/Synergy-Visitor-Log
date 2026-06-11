@@ -9,13 +9,13 @@ import 'package:synergyvisitorlog/main.dart';
 
 class InConfirm extends StatefulWidget {
   const InConfirm({
-    Key? key,
+    super.key,
     required this.name,
     required this.number,
     required this.cname,
     required this.caddress,
     required this.url,
-  }) : super(key: key);
+  });
 
   final String name;
   final String number;

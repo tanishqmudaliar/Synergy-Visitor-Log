@@ -9,8 +9,8 @@ import "package:synergyvisitorlog/inconfirm.dart";
 
 class In extends StatefulWidget {
   const In({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<In> createState() => _InState();
@@ -536,7 +536,7 @@ class _InState extends State<In> {
                                                 Padding(
                                                   padding:
                                                       const EdgeInsetsDirectional
-                                                              .fromSTEB(
+                                                          .fromSTEB(
                                                           0, 15, 0, 0),
                                                   child: ElevatedButton(
                                                     style: ElevatedButton

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:shared_preferences/shared_preferences.dart";
@@ -9,8 +11,8 @@ import "package:synergyvisitorlog/photo.dart";
 
 class Mobile extends StatefulWidget {
   const Mobile({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<Mobile> createState() => _MobileState();

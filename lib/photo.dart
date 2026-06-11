@@ -12,8 +12,8 @@ import 'package:synergyvisitorlog/name.dart';
 
 class Photo extends StatefulWidget {
   const Photo({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<Photo> createState() => _PhotoState();

@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import "package:flutter/material.dart";
 import "package:synergyvisitorlog/extendeddetails.dart";
 import "package:synergyvisitorlog/main.dart";
@@ -10,8 +12,8 @@ import "package:synergyvisitorlog/mobile.dart";
 // Name section of the enroll process
 class Name extends StatefulWidget {
   const Name({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<Name> createState() => _NameState();
