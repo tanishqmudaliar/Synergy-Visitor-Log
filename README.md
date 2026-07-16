@@ -9,6 +9,7 @@ This repository is designed to run offline on a single Android device. It uses l
 ![Android](https://img.shields.io/badge/Android-Local%20App-3DDC84?logo=android&logoColor=white)
 ![Storage](https://img.shields.io/badge/Storage-SQLite%20%2B%20SharedPreferences-003B57?logo=sqlite&logoColor=white)
 ![Offline](https://img.shields.io/badge/Offline-First-blue)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ---
 
@@ -36,6 +37,9 @@ This repository is designed to run offline on a single Android device. It uses l
 - [Known Limitations](#known-limitations)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
+- [Roadmap](#roadmap)
+- [License](#license)
+- [Summary](#summary)
 
 ---
 
@@ -163,7 +167,7 @@ Staff are also stored locally and can be used as host options in later visits.
 ## Screen Map
 
 | Screen           | File                       | Purpose                         |
-|------------------|----------------------------|---------------------------------|
+| ---------------- | -------------------------- | ------------------------------- |
 | Home             | `lib/main.dart`            | Entry point and main navigation |
 | Name             | `lib/name.dart`            | Capture visitor name            |
 | Mobile           | `lib/mobile.dart`          | Capture visitor phone number    |
@@ -232,7 +236,7 @@ Staff are also stored locally and can be used as host options in later visits.
 ## Tech Stack
 
 | Layer          | Package / Tech                           |
-|----------------|------------------------------------------|
+| -------------- | ---------------------------------------- |
 | Framework      | Flutter                                  |
 | Language       | Dart                                     |
 | Storage        | `sqflite`, `SharedPreferences`           |
@@ -257,7 +261,7 @@ Staff are also stored locally and can be used as host options in later visits.
 - Camera permission
 - Microphone permission if speech input is used
 
-### Install
+### Installation
 
 ```bash
 flutter pub get
@@ -323,7 +327,7 @@ The app uses `SharedPreferences` as a lightweight local memory layer between scr
 ### Keys Used
 
 | Key              | Purpose                                        |
-|------------------|------------------------------------------------|
+| ---------------- | ---------------------------------------------- |
 | `name`           | Stores visitor name during enrollment          |
 | `number`         | Stores visitor phone number                    |
 | `imagePath`      | Stores captured image path                     |
@@ -349,7 +353,7 @@ The code uses SQLite through `sqflite` and stores everything locally under a sin
 ### Tables Observed in Code
 
 | Table         | Role                                    |
-|---------------|-----------------------------------------|
+| ------------- | --------------------------------------- |
 | `users`       | Main visitor enrollments                |
 | `entries_in`  | Active or recent check-in records       |
 | `entries_out` | Active or recent check-out marker table |
@@ -873,7 +877,7 @@ These notifications are local device actions, not cloud pushes.
 The app may require:
 
 | Permission              | Why                        |
-|-------------------------|----------------------------|
+| ----------------------- | -------------------------- |
 | Camera                  | Photo capture              |
 | Microphone              | Speech-to-text             |
 | Storage or media access | Image saving and selection |
@@ -977,7 +981,19 @@ These are device services, not app backend services.
 
 ## Contributing
 
+Contributions are welcome! Please feel free to submit pull requests or open issues.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 If you extend this project, keep the local-first approach intact.
+
+---
+
+## Roadmap
 
 Suggested next improvements:
 
@@ -987,6 +1003,12 @@ Suggested next improvements:
 - better validation
 - cleaner screen routing
 - stronger search matching
+
+---
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
 
 ---
 
@@ -1004,3 +1026,8 @@ The current codebase uses:
 
 No Firebase configuration is required for the present implementation.
 
+---
+
+Made with ❤️ by [Tanishq Mudaliar](https://github.com/tanishqmudaliar)
+
+**Stop chasing paperwork — log visitors offline, effortlessly. 📋**
