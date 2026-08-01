@@ -36,6 +36,7 @@ This repository is designed to run offline on a single Android device. It uses l
 - [Offline Behavior](#offline-behavior)
 - [Known Limitations](#known-limitations)
 - [Troubleshooting](#troubleshooting)
+- [Recent Updates](#recent-updates)
 - [Contributing](#contributing)
 - [Roadmap](#roadmap)
 - [License](#license)
@@ -255,34 +256,63 @@ Staff are also stored locally and can be used as host options in later visits.
 
 ### Prerequisites
 
-- Flutter SDK
+- Flutter SDK (or [FVM](https://fvm.app/) — see below)
 - Android SDK
 - Android device or emulator
 - Camera permission
 - Microphone permission if speech input is used
 
+### Flutter Version (FVM)
+
+This project pins its Flutter SDK version with [FVM](https://fvm.app/) (Flutter Version Management). The pinned version lives in `.fvmrc` and `.fvm/fvm_config.json`, currently Flutter `3.38.4`. Using FVM is the easiest way to make sure your local Flutter version matches the one this project is built against.
+
+Install FVM (one-time, requires Dart):
+
+```bash
+dart pub global activate fvm
+```
+
+From the project root, install and select the pinned version:
+
+```bash
+fvm install
+fvm use
+```
+
+Once that's done, prefix Flutter commands with `fvm` (for example `fvm flutter pub get`, `fvm flutter run`) so they use the pinned SDK instead of your global one.
+
+If you'd rather not use FVM, that's fine too — just make sure your global Flutter SDK is a reasonably close match to `3.38.4`, and run the commands below without the `fvm` prefix.
+
 ### Installation
 
 ```bash
 flutter pub get
+# or, with FVM
+fvm flutter pub get
 ```
 
 ### Run
 
 ```bash
 flutter run
+# or, with FVM
+fvm flutter run
 ```
 
 ### Build APK
 
 ```bash
 flutter build apk --release
+# or, with FVM
+fvm flutter build apk --release
 ```
 
 ### Clean
 
 ```bash
 flutter clean
+# or, with FVM
+fvm flutter clean
 ```
 
 ---
@@ -976,6 +1006,14 @@ These are device services, not app backend services.
 
 - grant notification permission
 - check Android notification settings
+
+---
+
+## Recent Updates
+
+Recent updates focused on improving the project's Android and Flutter compatibility and development experience. The app configuration was refreshed to align with newer build tooling, including updates to Gradle settings, Android manifest, and theme resources. Dependency metadata and lockfiles were also updated to improve build reliability and keep the project current. These changes support the existing offline visitor-management workflow without changing the core app behavior.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ---
 
