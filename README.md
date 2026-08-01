@@ -4,6 +4,9 @@ Local-first Flutter visitor management app for enroll, check-in, check-out, and 
 
 This repository is designed to run offline on a single Android device. It uses local storage, local image handling, local speech input, and local notifications. There is no Firebase dependency in the current codebase.
 
+[![Download Release APK](https://img.shields.io/badge/Download-Release%20APK-4CAF50?logo=android&logoColor=white&style=for-the-badge)](https://github.com/tanishqmudaliar/Synergy-Visitor-Log/releases/download/v1.0.0/synergy-visitor-log-release.apk)
+[![Download Debug APK](https://img.shields.io/badge/Download-Debug%20APK-FF9800?logo=android&logoColor=white&style=for-the-badge)](https://github.com/tanishqmudaliar/Synergy-Visitor-Log/releases/download/v1.0.0/synergy-visitor-log-debug.apk)
+
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-Local%20App-3DDC84?logo=android&logoColor=white)
