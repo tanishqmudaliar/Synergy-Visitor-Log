@@ -1,10 +1,11 @@
 import "dart:io";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
-import "package:path/path.dart";
+import "package:path/path.dart" as path;
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
 import "package:sqflite/sqflite.dart";
+import "package:synergyvisitorlog/addlocation.dart";
 import "package:synergyvisitorlog/addstaff.dart";
 
 class Members extends StatefulWidget {
@@ -25,9 +26,6 @@ class _MembersState extends State<Members> {
   bool isStaff = false; // Variable to whether the users are logged in or not
   final GlobalKey<ScaffoldMessengerState> scaffoldKey =
       GlobalKey<ScaffoldMessengerState>(); // Show snackbar
-  String selectedOptionHost =
-      'Select Host'; // Tracks the selected dropdown option
-  List<String> staffList = ['Select Host']; // List of dropdown options
 
   // This runs only once when the screen is being displayed.
   @override
@@ -74,32 +72,24 @@ class _MembersState extends State<Members> {
       isLoading = true;
       isUser = false;
       isStaff = false;
+      allDataVisitor.clear();
+      allDataStaff.clear();
     });
     final databasePath = await getDatabasesPath();
 
     final database = await openDatabase(
-      join(databasePath, "database.db"),
+      path.join(databasePath, "database.db"),
     );
-    final staffResult = await database.query('staff');
-    setState(() {
-      staffList = staffResult.map((staff) => staff['id'] as String).toList();
-    });
-    final List<Map<String, dynamic>> queryResultStaff = await database.query(
-      'staff',
+    final staffTableExists = await database.rawQuery(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='staff'",
     );
-    if (mounted) {
-      setState(() {
-        if (staffList.length == 1) {
-          // Only "Select Host" is available in the list
-          isLoading = false;
-          isStaff = false;
-        } else {
-          isLoading = false;
-          isStaff = true;
-          // Update allData with fetched data
-          allDataStaff = queryResultStaff
-              .where((staff) => staff["id"] != "Select Host")
-              .map((staff) {
+    if (staffTableExists.isNotEmpty) {
+      final List<Map<String, dynamic>> queryResultStaff = await database.query(
+        'staff',
+      );
+      if (mounted) {
+        setState(() {
+          allDataStaff = queryResultStaff.map((staff) {
             return {
               "id": staff['id'],
               "number": staff['number'],
@@ -108,13 +98,15 @@ class _MembersState extends State<Members> {
               "url": staff['url'],
             };
           }).toList();
-        }
-      });
+          isStaff = allDataStaff.isNotEmpty;
+        });
+      }
     }
 
-    final isUserExists = await database.rawQuery(
-        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
-    if (isUserExists.isNotEmpty) {
+    final usersTableExists = await database.rawQuery(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='users'",
+    );
+    if (usersTableExists.isNotEmpty) {
       final List<Map<String, dynamic>> queryResult = await database.query(
         'users',
         orderBy: "createdAt DESC",
@@ -122,9 +114,6 @@ class _MembersState extends State<Members> {
       );
       if (mounted) {
         setState(() {
-          isLoading = false;
-          isUser = true;
-          // Update allData with fetched data
           allDataVisitor = queryResult.map((user) {
             return {
               "id": user['id'],
@@ -135,44 +124,45 @@ class _MembersState extends State<Members> {
               "url": user['url'],
             };
           }).toList();
+          isUser = allDataVisitor.isNotEmpty;
+          isLoading = false;
         });
       }
-    } else {
+    } else if (mounted) {
       setState(() {
-        // Set loading state to false when fetching users
-        isLoading = false;
         isUser = false;
+        isLoading = false;
       });
     }
   }
 
-  // Fetch a single user
+  // Fetch a single visitor by mobile number.
   void fetchUserVisitor({required String number}) async {
-    // Set loading state to true when fetching user
     setState(() {
       isLoading = true;
       isUser = false;
+      allDataVisitor.clear();
     });
 
     final databasePath = await getDatabasesPath();
     final database = await openDatabase(
-      join(databasePath, 'database.db'),
+      path.join(databasePath, 'database.db'),
     );
 
-    final isUserExists = await database.rawQuery(
-        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
-    if (isUserExists.isNotEmpty) {
+    final usersTableExists = await database.rawQuery(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='users'",
+    );
+    if (usersTableExists.isNotEmpty) {
       final List<Map<String, dynamic>> queryResult = await database.query(
         'users',
         where: 'phone = ?',
         whereArgs: [number],
         limit: 1,
       );
+
       if (mounted) {
         setState(() {
           if (queryResult.isNotEmpty) {
-            isLoading = false;
-            isUser = true;
             final user = queryResult[0];
             allDataVisitor.add({
               'id': user['id'],
@@ -182,69 +172,17 @@ class _MembersState extends State<Members> {
               'cdress': user['companyAddress'],
               'url': user['url'],
             });
+            isUser = true;
           } else {
-            // Set loading state to false when user is not found
-            isLoading = false;
             isUser = false;
           }
+          isLoading = false;
         });
       }
-    } else {
+    } else if (mounted) {
       setState(() {
-        // Set loading state to false when fetching users
         isLoading = false;
         isUser = false;
-      });
-    }
-  }
-
-  void fetchUserStaff({required String id}) async {
-    // Check if the id is "Select Host"
-    if (id == "Select Host") {
-      // Set loading state to false and isStaff to false
-      setState(() {
-        isLoading = false;
-        isStaff = false;
-      });
-      return; // Return early as there's no need to proceed further
-    }
-
-    // Set loading state to true when fetching user
-    setState(() {
-      isLoading = true;
-      isStaff = false;
-    });
-
-    final databasePath = await getDatabasesPath();
-    final database = await openDatabase(
-      join(databasePath, 'database.db'),
-    );
-
-    final List<Map<String, dynamic>> queryResult = await database.query(
-      'staff',
-      where: 'id = ?',
-      whereArgs: [id],
-      limit: 1,
-    );
-
-    if (mounted) {
-      setState(() {
-        if (queryResult.isNotEmpty) {
-          isLoading = false;
-          isStaff = true;
-          final user = queryResult[0];
-          allDataStaff.add({
-            "id": user['id'],
-            "number": user['number'],
-            "position": user['position'],
-            "experience": user['experience'],
-            "url": user['url'],
-          });
-        } else {
-          // Set loading state to false when user is not found
-          isLoading = false;
-          isStaff = false;
-        }
       });
     }
   }
@@ -491,7 +429,7 @@ class _MembersState extends State<Members> {
                                                 child: Padding(
                                                   padding:
                                                       const EdgeInsetsDirectional
-                                                              .fromSTEB(
+                                                          .fromSTEB(
                                                           20, 20, 20, 20),
                                                   child: Row(
                                                     mainAxisSize:
@@ -649,22 +587,15 @@ class _MembersState extends State<Members> {
                                                                 shape: BoxShape
                                                                     .circle,
                                                               ),
-                                                              child: ClipRRect(
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            15),
+                                                              child: ClipOval(
                                                                 child:
                                                                     Image.file(
                                                                   File(
                                                                       "${data["url"]}"),
-                                                                  width: MediaQuery.of(
-                                                                          context)
-                                                                      .size
-                                                                      .width,
+                                                                  width: 100,
                                                                   height: 100,
                                                                   fit: BoxFit
-                                                                      .contain,
+                                                                      .cover,
                                                                 ),
                                                               ),
                                                             ),
@@ -825,7 +756,14 @@ class _MembersState extends State<Members> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFFFFBD6),
                                   ),
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const AddLocation(),
+                                      ),
+                                    );
+                                  },
                                   child: const Padding(
                                     padding: EdgeInsetsDirectional.fromSTEB(
                                         0, 15, 0, 15),
@@ -862,62 +800,6 @@ class _MembersState extends State<Members> {
                                   ),
                                 ),
                               ),
-                              Padding(
-                                padding: const EdgeInsetsDirectional.fromSTEB(
-                                    0, 10, 0, 0),
-                                child: Container(
-                                  width: MediaQuery.of(context).size.width,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: const Color(0xFFFFFBD6),
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: ButtonTheme(
-                                      alignedDropdown: true,
-                                      child: DropdownButton(
-                                        dropdownColor: const Color(0xFFFFFBD6),
-                                        value: selectedOptionHost,
-                                        onChanged: (newValue) {
-                                          setState(() {
-                                            selectedOptionHost = newValue!;
-                                          });
-
-                                          allDataStaff.clear();
-                                          fetchUserStaff(
-                                              id: selectedOptionHost);
-                                        },
-                                        items: staffList
-                                            .map<DropdownMenuItem<String>>(
-                                                (String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(
-                                              value,
-                                              style: const TextStyle(
-                                                fontFamily: "ComicNeue",
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: Color.fromARGB(
-                                                    255, 65, 65, 65),
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                        icon: const Icon(
-                                          Icons.arrow_drop_down_rounded,
-                                          color:
-                                              Color.fromARGB(255, 70, 70, 70),
-                                          size: 36.0,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
                               const Divider(
                                 color: Color(0xFFFFFBD6),
                                 thickness: 2,
@@ -944,7 +826,7 @@ class _MembersState extends State<Members> {
                                                 child: Padding(
                                                   padding:
                                                       const EdgeInsetsDirectional
-                                                              .fromSTEB(
+                                                          .fromSTEB(
                                                           20, 20, 20, 20),
                                                   child: Row(
                                                     mainAxisSize:
@@ -1102,22 +984,15 @@ class _MembersState extends State<Members> {
                                                                 shape: BoxShape
                                                                     .circle,
                                                               ),
-                                                              child: ClipRRect(
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            15),
+                                                              child: ClipOval(
                                                                 child:
                                                                     Image.file(
                                                                   File(
                                                                       "${data["url"]}"),
-                                                                  width: MediaQuery.of(
-                                                                          context)
-                                                                      .size
-                                                                      .width,
+                                                                  width: 100,
                                                                   height: 100,
                                                                   fit: BoxFit
-                                                                      .contain,
+                                                                      .cover,
                                                                 ),
                                                               ),
                                                             ),

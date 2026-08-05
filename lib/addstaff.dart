@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart';
+import 'package:path/path.dart' as path;
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import "package:flutter_local_notifications/flutter_local_notifications.dart";
@@ -298,7 +298,7 @@ class _AddStaffState extends State<AddStaff>
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
-                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
                   child: Text(
                     "Entering a new staff!\n$name",
                     style: const TextStyle(
@@ -331,16 +331,64 @@ class _AddStaffState extends State<AddStaff>
     var platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
     );
-    final databasePath = await getDatabasesPath();
-    final database = await openDatabase(
-      join(databasePath, "database.db"),
-    );
-    final List<Map<String, dynamic>> existingStaff = await database.query(
-      "staff",
-      where: "id = ?",
-      whereArgs: [name],
-      limit: 1,
-    );
+    final List<Map<String, dynamic>> existingStaff;
+    final Database database;
+    try {
+      final databasePath = await getDatabasesPath();
+      database = await openDatabase(
+        path.join(databasePath, "database.db"),
+      );
+      await database.execute("""CREATE TABLE IF NOT EXISTS staff(
+          id TEXT PRIMARY KEY,
+          number TEXT,
+          experience TEXT,
+          position TEXT,
+          url TEXT)""");
+      existingStaff = await database.query(
+        "staff",
+        where: "id = ?",
+        whereArgs: [name],
+        limit: 1,
+      );
+    } catch (e) {
+      if (mounted) {
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.max,
+              children: <Widget>[
+                const Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                  child: Icon(
+                    Icons.error_outline_outlined,
+                    color: Color(0xFFFFFBD6),
+                    size: 22,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                  child: SizedBox(
+                    width: 60 / 100 * MediaQuery.of(context).size.width,
+                    child: Text(
+                      "Couldn't add staff: $e",
+                      style: const TextStyle(
+                        fontFamily: "ComicNeue",
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFFFFFBD6),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return;
+    }
     if (existingStaff.isNotEmpty) {
       scaffoldMessenger.hideCurrentSnackBar();
       scaffoldMessenger.showSnackBar(
@@ -361,7 +409,7 @@ class _AddStaffState extends State<AddStaff>
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
                   // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
                   child: const Text(
                     "This staff already exists!",
                     style: TextStyle(
@@ -379,55 +427,94 @@ class _AddStaffState extends State<AddStaff>
       );
       return;
     } else {
-      await database.insert("staff", staff,
-          conflictAlgorithm: ConflictAlgorithm.replace);
-      await flutterLocalNotificationsPlugin.show(
-        0, // Notification id (change as needed)
-        "Staff created successfully!", // Notification title
-        "Welcome to Syngery Intellutions $name", // Notification body
-        platformChannelSpecifics,
-        payload:
-            "notification_payload", // Optional payload for handling notification taps
-      );
-      scaffoldMessenger.hideCurrentSnackBar();
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            mainAxisSize: MainAxisSize.max,
-            children: <Widget>[
-              const Padding(
-                padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                child: Icon(
-                  Icons.done_all_rounded,
-                  color: Color(0xFFFFFBD6),
-                  size: 22,
+      try {
+        await database.insert("staff", staff,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+        await flutterLocalNotificationsPlugin.show(
+          0, // Notification id (change as needed)
+          "Staff created successfully!", // Notification title
+          "Welcome to Syngery Intellutions $name", // Notification body
+          platformChannelSpecifics,
+          payload:
+              "notification_payload", // Optional payload for handling notification taps
+        );
+        scaffoldMessenger.hideCurrentSnackBar();
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.max,
+              children: <Widget>[
+                const Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                  child: Icon(
+                    Icons.done_all_rounded,
+                    color: Color(0xFFFFFBD6),
+                    size: 22,
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
-                child: SizedBox(
-                  // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
-                  child: Text(
-                    "New staff entered successfully!\n$name",
-                    style: const TextStyle(
-                      fontFamily: "ComicNeue",
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFFFFFBD6),
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                  child: SizedBox(
+                    // ignore: use_build_context_synchronously
+                    width: 60 / 100 * MediaQuery.of(context).size.width,
+                    child: Text(
+                      "New staff entered successfully!\n$name",
+                      style: const TextStyle(
+                        fontFamily: "ComicNeue",
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFFFFFBD6),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-      await Future.delayed(const Duration(seconds: 2)); // Wait for 4 seconds
-      // ignore: use_build_context_synchronously
-      if (mounted) {
-        Navigator.pop(this.context);
+        );
+        await Future.delayed(const Duration(seconds: 2)); // Wait for 4 seconds
+        // ignore: use_build_context_synchronously
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
+          scaffoldMessenger.hideCurrentSnackBar();
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisSize: MainAxisSize.max,
+                children: <Widget>[
+                  const Padding(
+                    padding: EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                    child: Icon(
+                      Icons.error_outline_outlined,
+                      color: Color(0xFFFFFBD6),
+                      size: 22,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
+                    child: SizedBox(
+                      width: 60 / 100 * MediaQuery.of(context).size.width,
+                      child: Text(
+                        "Couldn't add staff: $e",
+                        style: const TextStyle(
+                          fontFamily: "ComicNeue",
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Color(0xFFFFFBD6),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
       }
     }
   }

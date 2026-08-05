@@ -2,7 +2,7 @@ import "dart:io";
 import 'package:flutter/material.dart';
 import "package:flutter/services.dart";
 import "package:intl/intl.dart";
-import "package:path/path.dart";
+import "package:path/path.dart" as path;
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
 import "package:sqflite/sqflite.dart";
@@ -74,42 +74,55 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
     // Set loading state to true when fetching users
     setState(() {
       isLoading = true;
+      isUser = false;
+      allData.clear();
     });
 
     final databasePath = await getDatabasesPath();
     final database = await openDatabase(
-      join(databasePath, "database.db"),
+      path.join(databasePath, "database.db"),
     );
-    final List<Map<String, dynamic>> queryResult = await database.query(
-      'entries_in',
-      orderBy: "createdAt DESC",
+    final entriesInExists = await database.rawQuery(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='entries_in'",
     );
-    if (mounted) {
+    if (entriesInExists.isNotEmpty) {
+      final List<Map<String, dynamic>> queryResult = await database.query(
+        'entries_in',
+        orderBy: "createdAt DESC",
+      );
+      if (mounted) {
+        setState(() {
+          if (queryResult.isNotEmpty) {
+            isLoading = false;
+            isUser = true;
+            // Update allData with fetched data
+            allData = queryResult.map((user) {
+              int millisecondsEpoch = int.parse(user["createdAt"]);
+              DateTime dateTime =
+                  DateTime.fromMillisecondsSinceEpoch(millisecondsEpoch);
+              String formattedDateTime =
+                  DateFormat('dd MMMM, yyyy | HH:mm').format(dateTime);
+              return {
+                "id": user['id'],
+                "name": user['name'],
+                "number": user['number'],
+                "timestamp": millisecondsEpoch,
+                "in": formattedDateTime,
+                "url": user['url'],
+              };
+            }).toList();
+          } else {
+            // Set loading state to false when fetching users
+            isLoading = false;
+            isUser = false;
+          }
+        });
+      }
+    } else if (mounted) {
       setState(() {
-        if (queryResult.isNotEmpty) {
-          isLoading = false;
-          isUser = true;
-          // Update allData with fetched data
-          allData = queryResult.map((user) {
-            int millisecondsEpoch = int.parse(user["createdAt"]);
-            DateTime dateTime =
-                DateTime.fromMillisecondsSinceEpoch(millisecondsEpoch);
-            String formattedDateTime =
-                DateFormat('dd MMMM, yyyy | HH:mm').format(dateTime);
-            return {
-              "id": user['id'],
-              "name": user['name'],
-              "number": user['number'],
-              "timestamp": millisecondsEpoch,
-              "in": formattedDateTime,
-              "url": user['url'],
-            };
-          }).toList();
-        } else {
-          // Set loading state to false when fetching users
-          isLoading = false;
-          isUser = false;
-        }
+        // Set loading state to false when the table does not exist
+        isLoading = false;
+        isUser = false;
       });
     }
   }
@@ -119,43 +132,56 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
     // Set loading state to true when fetching users
     setState(() {
       isLoading = true;
+      isUser = false;
+      allData.clear();
     });
     final databasePath = await getDatabasesPath();
     final database = await openDatabase(
-      join(databasePath, 'database.db'),
+      path.join(databasePath, 'database.db'),
     );
 
-    final List<Map<String, dynamic>> queryResult = await database.query(
-      'entries_in',
-      where: 'number = ?',
-      whereArgs: [number],
-      limit: 1,
+    final entriesInExists = await database.rawQuery(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='entries_in'",
     );
+    if (entriesInExists.isNotEmpty) {
+      final List<Map<String, dynamic>> queryResult = await database.query(
+        'entries_in',
+        where: 'number = ?',
+        whereArgs: [number],
+        limit: 1,
+      );
 
-    if (mounted) {
+      if (mounted) {
+        setState(() {
+          if (queryResult.isNotEmpty) {
+            isLoading = false;
+            isUser = true;
+            final user = queryResult[0];
+            int millisecondsEpoch = int.parse(user["createdAt"]);
+            DateTime dateTime =
+                DateTime.fromMillisecondsSinceEpoch(millisecondsEpoch);
+            String formattedDateTime =
+                DateFormat('dd MMMM, yyyy | HH:mm').format(dateTime);
+            allData.add({
+              "id": user['id'],
+              "name": user['name'],
+              "number": user['number'],
+              "timestamp": millisecondsEpoch,
+              "in": formattedDateTime,
+              "url": user['url'],
+            });
+          } else {
+            // Set loading state to false when user is not found
+            isLoading = false;
+            isUser = false;
+          }
+        });
+      }
+    } else if (mounted) {
       setState(() {
-        if (queryResult.isNotEmpty) {
-          isLoading = false;
-          isUser = true;
-          final user = queryResult[0];
-          int millisecondsEpoch = int.parse(user["createdAt"]);
-          DateTime dateTime =
-              DateTime.fromMillisecondsSinceEpoch(millisecondsEpoch);
-          String formattedDateTime =
-              DateFormat('dd MMMM, yyyy | HH:mm').format(dateTime);
-          allData.add({
-            "id": user['id'],
-            "name": user['name'],
-            "number": user['number'],
-            "timestamp": millisecondsEpoch,
-            "in": formattedDateTime,
-            "url": user['url'],
-          });
-        } else {
-          // Set loading state to false when user is not found
-          isLoading = false;
-          isUser = false;
-        }
+        // Set loading state to false when the table does not exist
+        isLoading = false;
+        isUser = false;
       });
     }
   }
@@ -191,7 +217,7 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
             Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
               child: SizedBox(
-                width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                width: 60 / 100 * MediaQuery.of(context).size.width,
                 child: Text(
                   "Logging you out!\n$name",
                   style: const TextStyle(
@@ -211,7 +237,7 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
 
     final databasePath = await getDatabasesPath();
     final database = await openDatabase(
-      join(databasePath, "database.db"),
+      path.join(databasePath, "database.db"),
     );
 
     final data = {
@@ -277,7 +303,7 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
                   // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
                   child: const Text(
                     "You're out!\nThanks for visiting, hope to see you again.",
                     style: TextStyle(
@@ -297,7 +323,7 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
       // ignore: use_build_context_synchronously
       if (mounted) {
         Navigator.pushAndRemoveUntil(
-          this.context,
+          context,
           MaterialPageRoute(builder: (_) => const MyApp()),
           (route) => false,
         );
@@ -627,21 +653,14 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
                                                               shape: BoxShape
                                                                   .circle,
                                                             ),
-                                                            child: ClipRRect(
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          15),
+                                                            child: ClipOval(
                                                               child: Image.file(
                                                                 File(
                                                                     "${data["url"]}"),
-                                                                width: MediaQuery.of(
-                                                                        context)
-                                                                    .size
-                                                                    .width,
+                                                                width: 100,
                                                                 height: 100,
                                                                 fit: BoxFit
-                                                                    .contain,
+                                                                    .cover,
                                                               ),
                                                             ),
                                                           ),
@@ -650,7 +669,7 @@ class _OutState extends State<Out> with SingleTickerProviderStateMixin {
                                                 Padding(
                                                   padding:
                                                       const EdgeInsetsDirectional
-                                                              .fromSTEB(
+                                                          .fromSTEB(
                                                           0, 15, 0, 0),
                                                   child: ElevatedButton(
                                                     style: ElevatedButton

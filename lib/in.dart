@@ -1,7 +1,7 @@
 import "dart:io";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
-import "package:path/path.dart";
+import "package:path/path.dart" as path;
 import "package:speech_to_text/speech_recognition_result.dart";
 import "package:speech_to_text/speech_to_text.dart";
 import "package:sqflite/sqflite.dart";
@@ -68,15 +68,17 @@ class _InState extends State<In> {
     setState(() {
       isLoading = true;
       isUser = false;
+      allData.clear();
     });
 
     final databasePath = await getDatabasesPath();
     final database = await openDatabase(
-      join(databasePath, "database.db"),
+      path.join(databasePath, "database.db"),
     );
-    final isUserExists = await database.rawQuery(
-        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
-    if (isUserExists.isNotEmpty) {
+    final usersTableExists = await database.rawQuery(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='users'",
+    );
+    if (usersTableExists.isNotEmpty) {
       final List<Map<String, dynamic>> queryResult = await database.query(
         'users',
         orderBy: "createdAt DESC",
@@ -102,13 +104,14 @@ class _InState extends State<In> {
         );
       }
     } else {
-      setState(
-        () {
-          // Set loading state to false when fetching users
-          isLoading = false;
-          isUser = false;
-        },
-      );
+      if (mounted) {
+        setState(
+          () {
+            isLoading = false;
+            isUser = false;
+          },
+        );
+      }
     }
   }
 
@@ -118,48 +121,58 @@ class _InState extends State<In> {
     setState(() {
       isLoading = true;
       isUser = false;
+      allData.clear();
     });
 
     final databasePath = await getDatabasesPath();
     final database = await openDatabase(
-      join(databasePath, 'database.db'),
+      path.join(databasePath, 'database.db'),
     );
-    final isUserExists = await database.rawQuery(
-        "SELECT * FROM sqlite_master WHERE type='table' AND name='users'");
-    if (isUserExists.isEmpty) {
+    final usersTableExists = await database.rawQuery(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='users'",
+    );
+    if (usersTableExists.isNotEmpty) {
       final List<Map<String, dynamic>> queryResult = await database.query(
         'users',
-        where: 'id = ?',
+        where: 'number = ?',
         whereArgs: [number],
         limit: 1,
       );
       if (mounted) {
         setState(
           () {
-            isLoading = false;
-            isUser = true;
-            final user = queryResult[0];
-            allData.add(
-              {
-                'id': user['id'],
-                'name': user['name'],
-                'number': user['phone'],
-                'cname': user['companyName'],
-                'cdress': user['companyAddress'],
-                'url': user['url'],
-              },
-            );
+            if (queryResult.isNotEmpty) {
+              isLoading = false;
+              isUser = true;
+              final user = queryResult[0];
+              allData.add(
+                {
+                  'id': user['id'],
+                  'name': user['name'],
+                  'number': user['number'],
+                  'cname': user['companyName'],
+                  'cdress': user['companyAddress'],
+                  'url': user['url'],
+                },
+              );
+            } else {
+              // Set loading state to false when user is not found
+              isLoading = false;
+              isUser = false;
+            }
           },
         );
       }
     } else {
-      setState(
-        () {
-          // Set loading state to false when user is not found
-          isLoading = false;
-          isUser = false;
-        },
-      );
+      if (mounted) {
+        setState(
+          () {
+            // Set loading state to false when the table does not exist
+            isLoading = false;
+            isUser = false;
+          },
+        );
+      }
     }
   }
 
@@ -513,21 +526,14 @@ class _InState extends State<In> {
                                                               shape: BoxShape
                                                                   .circle,
                                                             ),
-                                                            child: ClipRRect(
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          15),
+                                                            child: ClipOval(
                                                               child: Image.file(
                                                                 File(
                                                                     "${data["url"]}"),
-                                                                width: MediaQuery.of(
-                                                                        context)
-                                                                    .size
-                                                                    .width,
+                                                                width: 100,
                                                                 height: 100,
                                                                 fit: BoxFit
-                                                                    .contain,
+                                                                    .cover,
                                                               ),
                                                             ),
                                                           ),

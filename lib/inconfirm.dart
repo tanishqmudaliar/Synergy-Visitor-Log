@@ -3,7 +3,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart';
+import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 import 'package:synergyvisitorlog/main.dart';
 
@@ -30,12 +30,10 @@ class InConfirm extends StatefulWidget {
 class _InConfirmState extends State<InConfirm>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController; // AnimationController
-  String selectedOptionHost =
-      'Select Host'; // Tracks the selected dropdown option
-  List<String> staffList = ['Select Host']; // List of dropdown options
-  String selectedOptionLocation =
-      'Select Location'; // Tracks the selected dropdown option
-  List<String> locationList = ['Select Location']; // List of dropdown options
+  String? selectedOptionHost; // Tracks the selected dropdown option
+  List<String> staffList = []; // List of dropdown options
+  String? selectedOptionLocation; // Tracks the selected dropdown option
+  List<String> locationList = []; // List of dropdown options
   final GlobalKey<ScaffoldMessengerState> scaffoldKey =
       GlobalKey<ScaffoldMessengerState>(); // Show snackbar
 
@@ -55,14 +53,45 @@ class _InConfirmState extends State<InConfirm>
   void fetchData() async {
     final databasePath = await getDatabasesPath();
     final database = await openDatabase(
-      join(databasePath, 'database.db'),
+      path.join(databasePath, 'database.db'),
     );
+    await database.execute(
+        """CREATE TABLE IF NOT EXISTS location(id TEXT PRIMARY KEY)""");
     final staffResult = await database.query('staff');
     final locationResult = await database.query('location');
+    if (!mounted) return;
     setState(() {
-      staffList = staffResult.map((staff) => staff['id'] as String).toList();
-      locationList =
-          locationResult.map((location) => location['id'] as String).toList();
+      staffList = staffResult
+          .map((staff) => staff['id'] as String)
+          .where((staff) =>
+              staff.trim().isNotEmpty &&
+              staff != 'Select Host' &&
+              staff != 'Select Location')
+          .toSet()
+          .toList();
+      locationList = locationResult
+          .map((location) => location['id'] as String)
+          .where((location) =>
+              location.trim().isNotEmpty &&
+              location != 'Select Location' &&
+              location != 'Select Host')
+          .toSet()
+          .toList();
+
+      if (selectedOptionHost == null && staffList.isNotEmpty) {
+        selectedOptionHost = staffList.first;
+      } else if (selectedOptionHost != null &&
+          !staffList.contains(selectedOptionHost)) {
+        selectedOptionHost = staffList.isNotEmpty ? staffList.first : null;
+      }
+
+      if (selectedOptionLocation == null && locationList.isNotEmpty) {
+        selectedOptionLocation = locationList.first;
+      } else if (selectedOptionLocation != null &&
+          !locationList.contains(selectedOptionLocation)) {
+        selectedOptionLocation =
+            locationList.isNotEmpty ? locationList.first : null;
+      }
     });
   }
 
@@ -75,15 +104,15 @@ class _InConfirmState extends State<InConfirm>
     required ScaffoldMessengerState scaffoldMessenger,
   }) async {
     if (mounted) {
-      if (selectedOptionHost == 'Select Host') {
+      if (selectedOptionHost == null) {
         // Show a pop-up dialog if selectedOption is true
         showDialog(
-          context: this.context,
+          context: context,
           builder: (BuildContext context) {
             return AlertDialog(
               backgroundColor: const Color(0xFFFFFBD6),
               title: const Text(
-                "Choose the person whom you want to meet!",
+                "Choose the staff member you want to meet!",
                 style: TextStyle(
                   fontFamily: "ComicNeue",
                   fontWeight: FontWeight.bold,
@@ -92,7 +121,7 @@ class _InConfirmState extends State<InConfirm>
                 ),
               ),
               content: const Text(
-                "Please choose the person whom you are going to meet for security purposes!",
+                "Please choose the staff member you are going to meet for security purposes!",
                 style: TextStyle(
                   fontFamily: "ComicNeue",
                   fontWeight: FontWeight.bold,
@@ -122,10 +151,10 @@ class _InConfirmState extends State<InConfirm>
           },
         );
       } else {
-        if (selectedOptionLocation == "Select Location") {
+        if (selectedOptionLocation == null) {
           // Show a pop-up dialog if selectedOption is true
           showDialog(
-            context: this.context,
+            context: context,
             builder: (BuildContext context) {
               return AlertDialog(
                 backgroundColor: const Color(0xFFFFFBD6),
@@ -139,7 +168,7 @@ class _InConfirmState extends State<InConfirm>
                   ),
                 ),
                 content: const Text(
-                  "Please choose the location where you are meeting the host!",
+                  "Please choose the location where you are meeting the staff member!",
                   style: TextStyle(
                     fontFamily: "ComicNeue",
                     fontWeight: FontWeight.bold,
@@ -193,7 +222,7 @@ class _InConfirmState extends State<InConfirm>
                   Padding(
                     padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                     child: SizedBox(
-                      width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                      width: 60 / 100 * MediaQuery.of(context).size.width,
                       child: Text(
                         "Entering you in!\n$name",
                         style: const TextStyle(
@@ -210,10 +239,12 @@ class _InConfirmState extends State<InConfirm>
             ),
           );
           String date = DateFormat('dd-MM-yyyy|kk:mm').format(DateTime.now());
+          final normalizedId = id.trim();
+          final normalizedNumber = number.trim();
 
           final databasePath = await getDatabasesPath();
           final database = await openDatabase(
-            join(databasePath, "database.db"),
+            path.join(databasePath, "database.db"),
           );
 
           final inData = {
@@ -240,13 +271,13 @@ class _InConfirmState extends State<InConfirm>
             final List<Map<String, dynamic>> existingUsers =
                 await database.query(
               "entries_in",
-              where: "id = ?",
-              whereArgs: [id],
+              where: "id = ? OR number = ?",
+              whereArgs: [normalizedId, normalizedNumber],
               limit: 1,
             );
 
             if (existingUsers.isNotEmpty) {
-              // The user exists in the table, do your desired actions here
+              // The user is already checked in and must check out first.
               scaffoldMessenger.hideCurrentSnackBar();
               scaffoldMessenger.showSnackBar(
                 SnackBar(
@@ -266,10 +297,9 @@ class _InConfirmState extends State<InConfirm>
                         padding:
                             const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                         child: SizedBox(
-                          width:
-                              60 / 100 * MediaQuery.of(this.context).size.width,
+                          width: 60 / 100 * MediaQuery.of(context).size.width,
                           child: const Text(
-                            "This user already exists!",
+                            "This user is already in. Please check out first.",
                             style: TextStyle(
                               fontFamily: "ComicNeue",
                               fontWeight: FontWeight.bold,
@@ -319,8 +349,7 @@ class _InConfirmState extends State<InConfirm>
                         padding:
                             const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                         child: SizedBox(
-                          width:
-                              60 / 100 * MediaQuery.of(this.context).size.width,
+                          width: 60 / 100 * MediaQuery.of(context).size.width,
                           child: Text(
                             "Visitor has successfully logged in!\n$name",
                             style: const TextStyle(
@@ -339,7 +368,7 @@ class _InConfirmState extends State<InConfirm>
               await Future.delayed(
                   const Duration(seconds: 2)); // Wait for 4 seconds
               Navigator.pushAndRemoveUntil(
-                this.context,
+                context,
                 MaterialPageRoute(builder: (_) => const HomePage()),
                 (route) => false,
               );
@@ -396,8 +425,7 @@ class _InConfirmState extends State<InConfirm>
                     Padding(
                       padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                       child: SizedBox(
-                        width:
-                            60 / 100 * MediaQuery.of(this.context).size.width,
+                        width: 60 / 100 * MediaQuery.of(context).size.width,
                         child: Text(
                           "Visitor has successfully logged in!\n$name",
                           style: const TextStyle(
@@ -416,7 +444,7 @@ class _InConfirmState extends State<InConfirm>
             await Future.delayed(
                 const Duration(seconds: 2)); // Wait for 4 seconds
             Navigator.pushAndRemoveUntil(
-              this.context,
+              context,
               MaterialPageRoute(builder: (_) => const HomePage()),
               (route) => false,
             );
@@ -580,13 +608,12 @@ class _InConfirmState extends State<InConfirm>
                                     color: Color.fromARGB(255, 254, 227, 227),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(15),
+                                  child: ClipOval(
                                     child: Image.file(
                                       File(widget.url),
-                                      width: MediaQuery.of(context).size.width,
+                                      width: 100,
                                       height: 100,
-                                      fit: BoxFit.contain,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
                                 ),
@@ -614,6 +641,15 @@ class _InConfirmState extends State<InConfirm>
                               child: DropdownButton(
                                 dropdownColor: const Color(0xFFFFFBD6),
                                 value: selectedOptionHost,
+                                hint: const Text(
+                                  'Select Staff',
+                                  style: TextStyle(
+                                    fontFamily: "ComicNeue",
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Color.fromARGB(255, 65, 65, 65),
+                                  ),
+                                ),
                                 onChanged: (newValue) {
                                   setState(() {
                                     selectedOptionHost = newValue!;
@@ -660,12 +696,21 @@ class _InConfirmState extends State<InConfirm>
                           child: DropdownButtonHideUnderline(
                             child: ButtonTheme(
                               alignedDropdown: true,
-                              child: DropdownButton(
+                              child: DropdownButton<String>(
                                 dropdownColor: const Color(0xFFFFFBD6),
                                 value: selectedOptionLocation,
+                                hint: const Text(
+                                  'Select Location',
+                                  style: TextStyle(
+                                    fontFamily: "ComicNeue",
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Color.fromARGB(255, 65, 65, 65),
+                                  ),
+                                ),
                                 onChanged: (newValue) {
                                   setState(() {
-                                    selectedOptionLocation = newValue!;
+                                    selectedOptionLocation = newValue;
                                   });
                                 },
                                 items: locationList

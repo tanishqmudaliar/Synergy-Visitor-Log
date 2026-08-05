@@ -41,6 +41,35 @@ class _PhotoState extends State<Photo> {
     loadData();
   }
 
+  // Crops [imagePath] around the detected [face], saving the result back
+  // to the same file. Returns false (instead of throwing) if decoding or
+  // cropping fails for any reason, so callers can fall back to the manual
+  // cropper rather than crashing.
+  Future<bool> _cropToFace(String imagePath, Face face) async {
+    try {
+      final bytes = await File(imagePath).readAsBytes();
+      final img.Image? originalImage = img.decodeImage(bytes);
+      if (originalImage == null) return false; // unsupported/corrupt format
+
+      final imgWidth = originalImage.width;
+      final imgHeight = originalImage.height;
+
+      final x = (face.boundingBox.left.toInt() - 150).clamp(0, imgWidth - 1);
+      final y = (face.boundingBox.top.toInt() - 100).clamp(0, imgHeight - 1);
+      final width =
+          (300 + face.boundingBox.width.toInt()).clamp(1, imgWidth - x);
+      final height =
+          (300 + face.boundingBox.height.toInt()).clamp(1, imgHeight - y);
+
+      final faceCrop =
+          img.copyCrop(originalImage, x: x, y: y, width: width, height: height);
+      await File(imagePath).writeAsBytes(img.encodeJpg(faceCrop));
+      return true;
+    } catch (_) {
+      return false; // anything goes wrong -> fall back, don't crash
+    }
+  }
+
   // Input image through camera
   Future<void> imageClickCamera() async {
     XFile? image = await imagePicker.pickImage(
@@ -55,21 +84,12 @@ class _PhotoState extends State<Photo> {
       final inputImage = InputImage.fromFilePath(image.path);
       final List<Face> faces = await faceDetector.processImage(inputImage);
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      if (faces.isNotEmpty) {
-        // Accessing the first face directly from the "faces" list
-        Face firstFace = faces.first;
 
-        int x = firstFace.boundingBox.left.toInt() - 150;
-        int y = firstFace.boundingBox.top.toInt() - 100;
-        int width = 300 + firstFace.boundingBox.width.toInt();
-        int height = 300 + firstFace.boundingBox.height.toInt();
-        img.Image? originalImage =
-            img.decodeImage(File(image.path).readAsBytesSync());
-        img.Image faceCrop = img.copyCrop(originalImage!,
-            x: x, y: y, width: width, height: height);
+      final cropped =
+          faces.isNotEmpty ? await _cropToFace(image.path, faces.first) : false;
 
+      if (cropped) {
         setState(() {
-          File(image.path).writeAsBytesSync(img.encodeJpg(faceCrop));
           imageFile = File(image.path);
           prefs.setString("imagePath", image.path);
           isLoading = false;
@@ -109,21 +129,12 @@ class _PhotoState extends State<Photo> {
       final inputImage = InputImage.fromFilePath(image.path);
       final List<Face> faces = await faceDetector.processImage(inputImage);
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      if (faces.isNotEmpty) {
-        // Accessing the first face directly from the "faces" list
-        Face firstFace = faces.first;
 
-        int x = firstFace.boundingBox.left.toInt() - 150;
-        int y = firstFace.boundingBox.top.toInt() - 100;
-        int width = 300 + firstFace.boundingBox.width.toInt();
-        int height = 300 + firstFace.boundingBox.height.toInt();
-        img.Image? originalImage =
-            img.decodeImage(File(image.path).readAsBytesSync());
-        img.Image faceCrop = img.copyCrop(originalImage!,
-            x: x, y: y, width: width, height: height);
+      final cropped =
+          faces.isNotEmpty ? await _cropToFace(image.path, faces.first) : false;
 
+      if (cropped) {
         setState(() {
-          File(image.path).writeAsBytesSync(img.encodeJpg(faceCrop));
           imageFile = File(image.path);
           prefs.setString("imagePath", image.path);
           isLoading = false;
@@ -226,9 +237,9 @@ class _PhotoState extends State<Photo> {
                         child: Container(
                           width: 150,
                           height: 150,
-                          decoration: const BoxDecoration(
-                            color: Color.fromARGB(255, 254, 227, 227),
-                            shape: BoxShape.circle,
+                          decoration: BoxDecoration(
+                            color: const Color.fromARGB(255, 254, 227, 227),
+                            borderRadius: BorderRadius.circular(18),
                           ),
                           child: Image.asset(
                             "assets/images/logo.png",

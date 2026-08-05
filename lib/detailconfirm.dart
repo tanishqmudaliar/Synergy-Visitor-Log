@@ -5,7 +5,7 @@ import "package:google_mlkit_face_detection/google_mlkit_face_detection.dart";
 import "package:image/image.dart" as img;
 import "package:image_cropper/image_cropper.dart";
 import "package:image_picker/image_picker.dart";
-import "package:path/path.dart";
+import "package:path/path.dart" as path;
 import "package:shared_preferences/shared_preferences.dart";
 import "package:sqflite/sqflite.dart";
 import "package:synergyvisitorlog/extendeddetails.dart";
@@ -410,7 +410,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
-                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
                   child: Text(
                     "Creating a new user!\n$name",
                     style: const TextStyle(
@@ -457,7 +457,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
                   // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
                   child: Text(
                     "New user created successfully!\n$name",
                     style: const TextStyle(
@@ -477,7 +477,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       // ignore: use_build_context_synchronously
       if (mounted) {
         Navigator.pushAndRemoveUntil(
-          this.context,
+          context,
           MaterialPageRoute(builder: (_) => const HomePage()),
           (route) => false,
         );
@@ -519,7 +519,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
               Padding(
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
-                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
                   child: Text(
                     "Creating a new user!\n$name",
                     style: const TextStyle(
@@ -566,7 +566,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                 padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                 child: SizedBox(
                   // ignore: use_build_context_synchronously
-                  width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                  width: 60 / 100 * MediaQuery.of(context).size.width,
                   child: Text(
                     "New user created successfully!\n$name",
                     style: const TextStyle(
@@ -586,7 +586,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
       // ignore: use_build_context_synchronously
       if (mounted) {
         Navigator.pushAndRemoveUntil(
-          this.context,
+          context,
           MaterialPageRoute(
               builder: (_) => InConfirm(
                     name: name,
@@ -615,7 +615,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
     );
     final databasePath = await getDatabasesPath();
     final database = await openDatabase(
-      join(databasePath, "database.db"),
+      path.join(databasePath, "database.db"),
     );
 
     final isUserExists = await database.rawQuery(
@@ -646,7 +646,7 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                   padding: const EdgeInsetsDirectional.fromSTEB(5, 0, 0, 0),
                   child: SizedBox(
                     // ignore: use_build_context_synchronously
-                    width: 60 / 100 * MediaQuery.of(this.context).size.width,
+                    width: 60 / 100 * MediaQuery.of(context).size.width,
                     child: const Text(
                       "This user already exists!",
                       style: TextStyle(
@@ -751,9 +751,9 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                         child: Container(
                           width: 150,
                           height: 150,
-                          decoration: const BoxDecoration(
-                            color: Color.fromARGB(255, 254, 227, 227),
-                            shape: BoxShape.circle,
+                          decoration: BoxDecoration(
+                            color: const Color.fromARGB(255, 254, 227, 227),
+                            borderRadius: BorderRadius.circular(18),
                           ),
                           child: Image.asset(
                             "assets/images/logo.png",
@@ -1302,6 +1302,9 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFFFFBD6),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
                               onPressed: () async {
                                 showDialog<String>(
@@ -1379,25 +1382,21 @@ class _DetailsConfirmState extends State<DetailsConfirm>
                                 child: Center(
                                   child: imageFile != null
                                       ? Center(
-                                          child: imageFile != null
-                                              ? Image.file(
-                                                  imageFile,
-                                                  width: MediaQuery.of(context)
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Image.file(
+                                              imageFile,
+                                              width: MediaQuery.of(context)
+                                                  .size
+                                                  .width,
+                                              height: 86.5 / 100 *
+                                                  MediaQuery.of(context)
                                                       .size
                                                       .width,
-                                                  height: 86.5 /
-                                                      100 *
-                                                      MediaQuery.of(context)
-                                                          .size
-                                                          .width,
-                                                  fit: BoxFit.contain,
-                                                )
-                                              : const CircularProgressIndicator(
-                                                  backgroundColor:
-                                                      Color.fromARGB(
-                                                          255, 65, 65, 65),
-                                                  color: Color(0xFFFFFBD6),
-                                                ),
+                                              fit: BoxFit.contain,
+                                            ),
+                                          ),
                                         )
                                       : const Row(
                                           mainAxisSize: MainAxisSize.max,
