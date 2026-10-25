@@ -260,32 +260,12 @@ Staff are also stored locally and can be used as host options in later visits.
 
 ### Prerequisites
 
-- Flutter SDK (or [FVM](https://fvm.app/) — see below)
+- Flutter SDK (3.x stable)
 - Android SDK
 - Android device or emulator
 - Camera permission
 - Microphone permission if speech input is used
 
-### Flutter Version (FVM)
-
-This project pins its Flutter SDK version with [FVM](https://fvm.app/) (Flutter Version Management). The pinned version lives in `.fvmrc` and `.fvm/fvm_config.json`, currently Flutter `3.38.4`. Using FVM is the easiest way to make sure your local Flutter version matches the one this project is built against.
-
-Install FVM (one-time, requires Dart):
-
-```bash
-dart pub global activate fvm
-```
-
-From the project root, install and select the pinned version:
-
-```bash
-fvm install
-fvm use
-```
-
-Once that's done, prefix Flutter commands with `fvm` (for example `fvm flutter pub get`, `fvm flutter run`) so they use the pinned SDK instead of your global one.
-
-If you'd rather not use FVM, that's fine too — just make sure your global Flutter SDK is a reasonably close match to `3.38.4`, and run the commands below without the `fvm` prefix.
 
 ### Docker (Containerized Development & Build)
 
@@ -309,32 +289,24 @@ docker compose run --rm dev
 
 ```bash
 flutter pub get
-# or, with FVM
-fvm flutter pub get
 ```
 
 ### Run
 
 ```bash
 flutter run
-# or, with FVM
-fvm flutter run
 ```
 
 ### Build APK
 
 ```bash
 flutter build apk --release
-# or, with FVM
-fvm flutter build apk --release
 ```
 
 ### Clean
 
 ```bash
 flutter clean
-# or, with FVM
-fvm flutter clean
 ```
 
 ---
