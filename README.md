@@ -4,12 +4,13 @@ Local-first Flutter visitor management app for enroll, check-in, check-out, and 
 
 This repository is designed to run offline on a single Android device. It uses local storage, local image handling, local speech input, and local notifications. There is no Firebase dependency in the current codebase.
 
-[![Download Release APK](https://img.shields.io/badge/Download-Release%20APK-4CAF50?logo=android&logoColor=white&style=for-the-badge)](https://github.com/tanishqmudaliar/Synergy-Visitor-Log/releases/download/v1.0.0/synergy-visitor-log-release.apk)
-[![Download Debug APK](https://img.shields.io/badge/Download-Debug%20APK-FF9800?logo=android&logoColor=white&style=for-the-badge)](https://github.com/tanishqmudaliar/Synergy-Visitor-Log/releases/download/v1.0.0/synergy-visitor-log-debug.apk)
+[![Download Release APK](https://img.shields.io/badge/Download-Release%20APK-4CAF50?logo=android&logoColor=white&style=for-the-badge)](https://github.com/tanishqmudaliar/Synergy-Visitor-Log/releases/download/v1.0.2/synergy-visitor-log-release.apk)
+[![Download Debug APK](https://img.shields.io/badge/Download-Debug%20APK-FF9800?logo=android&logoColor=white&style=for-the-badge)](https://github.com/tanishqmudaliar/Synergy-Visitor-Log/releases/download/v1.0.2/synergy-visitor-log-debug.apk)
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-Local%20App-3DDC84?logo=android&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?logo=docker&logoColor=white)
 ![Storage](https://img.shields.io/badge/Storage-SQLite%20%2B%20SharedPreferences-003B57?logo=sqlite&logoColor=white)
 ![Offline](https://img.shields.io/badge/Offline-First-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
@@ -285,6 +286,24 @@ fvm use
 Once that's done, prefix Flutter commands with `fvm` (for example `fvm flutter pub get`, `fvm flutter run`) so they use the pinned SDK instead of your global one.
 
 If you'd rather not use FVM, that's fine too — just make sure your global Flutter SDK is a reasonably close match to `3.38.4`, and run the commands below without the `fvm` prefix.
+
+### Docker (Containerized Development & Build)
+
+You can build APKs, run tests, and develop in an isolated container without installing Flutter or the Android SDK locally on your host. See [DOCKER.md](DOCKER.md) for full instructions.
+
+```bash
+# Build debug APK into build/app/outputs/flutter-apk/
+docker compose run --rm build-debug
+
+# Build release APK
+docker compose run --rm build-release
+
+# Run static analysis and tests
+docker compose run --rm test
+
+# Interactive development shell
+docker compose run --rm dev
+```
 
 ### Installation
 
@@ -1014,7 +1033,13 @@ These are device services, not app backend services.
 
 ## Recent Updates
 
-Recent updates focused on improving the project's Android and Flutter compatibility and development experience. The app configuration was refreshed to align with newer build tooling, including updates to Gradle settings, Android manifest, and theme resources. Dependency metadata and lockfiles were also updated to improve build reliability and keep the project current. These changes support the existing offline visitor-management workflow without changing the core app behavior.
+### v1.0.2 (2026-10-26)
+- **Full Docker Support**: Added multi-stage `Dockerfile`, BuildKit local export support, and `docker-compose.yml` for isolated debug/release APK builds, Play Store app bundles, automated testing, and development shells. See [DOCKER.md](DOCKER.md).
+- **Modernized Android Build Toolchain**: Migrated build scripts from Groovy to Kotlin DSL (`build.gradle.kts`, `settings.gradle.kts`, `app/build.gradle.kts`), upgraded Gradle wrapper to 9.3.1, and AGP to 9.1.0.
+- **Dependency & SDK Compatibility**: Enabled core library desugaring in `:app` for `flutter_local_notifications` and added root Gradle subproject hooks enforcing Android API 36 compilation across legacy plugins (`image_cropper`).
+
+### v1.0.1 (2026-08-05)
+- Clear duplicate check-in protection, refined In confirmation wording, host dropdown improvements, and tightened empty states.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
