@@ -1,0 +1,33 @@
+# Version control
+.git
+.github
+.gitignore
+
+# Flutter & Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Android build artifacts and caches
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/*.iml
+android/app/*.iml
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.iml
+
+# FVM
+.fvm/
+.fvmrc
+
+# Temporary files and logs
+*.log
+.DS_Store
+Thumbs.db

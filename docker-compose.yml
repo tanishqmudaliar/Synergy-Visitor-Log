@@ -1,0 +1,89 @@
+services:
+  # Fast development build using host volume mount (outputs APK directly to build/app/outputs/flutter-apk)
+  build-debug:
+    image: ghcr.io/cirruslabs/flutter:stable
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+    environment:
+      - GRADLE_USER_HOME=/root/.gradle
+    command: >
+      bash -c "
+        git config --global --add safe.directory /workspace &&
+        flutter pub get &&
+        flutter build apk --debug
+      "
+
+  # Fast release build using host volume mount
+  build-release:
+    image: ghcr.io/cirruslabs/flutter:stable
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+    environment:
+      - GRADLE_USER_HOME=/root/.gradle
+    command: >
+      bash -c "
+        git config --global --add safe.directory /workspace &&
+        flutter pub get &&
+        flutter build apk --release
+      "
+
+  # Build Google Play Android App Bundle (.aab)
+  build-bundle:
+    image: ghcr.io/cirruslabs/flutter:stable
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+    environment:
+      - GRADLE_USER_HOME=/root/.gradle
+    command: >
+      bash -c "
+        git config --global --add safe.directory /workspace &&
+        flutter pub get &&
+        flutter build appbundle
+      "
+
+  # Run code analysis and automated tests
+  test:
+    image: ghcr.io/cirruslabs/flutter:stable
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+    command: >
+      bash -c "
+        git config --global --add safe.directory /workspace &&
+        flutter pub get &&
+        flutter analyze &&
+        flutter test
+      "
+
+  # Interactive shell inside the Flutter + Android container environment
+  # Includes bridge to host networking for ADB (wireless or forwarded ADB server)
+  dev:
+    image: ghcr.io/cirruslabs/flutter:stable
+    working_dir: /workspace
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/workspace
+      - gradle-cache:/root/.gradle
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  # Hermetic containerized build using Dockerfile
+  ci-build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_TYPE: debug
+    image: synergyvisitorlog:ci
+
+volumes:
+  gradle-cache:
